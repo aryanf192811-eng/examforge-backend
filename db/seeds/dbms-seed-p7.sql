@@ -1,0 +1,60 @@
+-- ═══════════════════════════════════════════════════════════════════════════
+-- EXAMFORGE — DBMS PYQ SEED v2  (Part 7 / 7)
+-- COMMIT + Verification Queries + Stats Block
+-- ═══════════════════════════════════════════════════════════════════════════
+
+COMMIT;
+
+-- ─── POST-SEED VERIFICATION QUERIES ──────────────────────────────────────
+-- Run these after executing dbms-seed.sql to verify correctness:
+--
+-- SELECT COUNT(*) FROM topics
+--   WHERE chapter_id IN (SELECT id FROM chapters
+--     WHERE subject_id = (SELECT id FROM subjects WHERE slug='dbms'));
+-- Expected: 45
+--
+-- SELECT COUNT(*) FROM questions
+--   WHERE subject_id = (SELECT id FROM subjects WHERE slug='dbms');
+-- Expected: 55
+--
+-- SELECT COUNT(*) FROM flashcards
+--   WHERE subject_id = (SELECT id FROM subjects WHERE slug='dbms');
+-- Expected: 45
+--
+-- SELECT COUNT(*) FROM tags;
+-- Expected: >= 30
+--
+-- SELECT COUNT(*) FROM question_tags
+--   WHERE question_id IN (SELECT id FROM questions
+--     WHERE subject_id = (SELECT id FROM subjects WHERE slug='dbms'));
+-- Expected: >= 100 (avg 2 tags per question)
+--
+-- SELECT type, COUNT(*) FROM questions
+--   WHERE subject_id = (SELECT id FROM subjects WHERE slug='dbms')
+--   GROUP BY type;
+-- Expected: MCQ: 40, NAT: 7, MSQ: 8
+--
+-- SELECT difficulty, COUNT(*) FROM questions
+--   WHERE subject_id = (SELECT id FROM subjects WHERE slug='dbms')
+--   GROUP BY difficulty;
+-- Expected: easy: ~16, medium: ~30, hard: ~9
+
+-- ─── STATS COMMENT BLOCK ─────────────────────────────────────────────────
+-- STATS:
+-- Tags:         30 unique (atomic, reusable across subjects)
+-- Topics:       45 (6–8 per chapter × 7 chapters)
+-- Questions:    55 total
+--   MCQ:        40 (Q1–Q40)
+--   NAT:        7  (Q41–Q47)
+--   MSQ:        8  (Q48–Q55)
+--   easy:       15 | medium: 30 | hard: 10
+--   PYQ verified: 1 (GATE 2014 Student_Performance Q3)
+--   GATE-pattern practice: 54
+--   Years covered: 2014 (PYQ) + practice questions covering 2003–2024 patterns
+-- Flashcards:   45 (15 normalization + 10 sql-ra + 10 transactions + 10 indexing)
+-- Chapters:     7
+-- Subject slug: dbms
+-- Schema version: v2 (normalized tags, NUMERIC(10,2) NAT, topic enforcement)
+-- ═══════════════════════════════════════════════════════════════════════════
+-- END OF dbms-seed.sql
+-- ═══════════════════════════════════════════════════════════════════════════
