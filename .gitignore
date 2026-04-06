@@ -1,0 +1,25 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Environments
+.env
+.venv
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# Project specific files
+firebase-key.json
+rebase-key.json
+
+# IDEs
+.vscode/
+
+# Ignore artifacts output by the AI
+artifacts/
+pip_err*.txt
+pip_out.txt
