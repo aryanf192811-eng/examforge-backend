@@ -12,7 +12,7 @@ class Settings(BaseSettings):
     # ── General ──────────────────────────────────────────────────────────
     APP_ENV: str = "development"
     DEBUG: bool = False
-    ALLOWED_ORIGINS: list[str] = ["http://localhost:5173", "https://examforge.in"]
+    ALLOWED_ORIGINS: list[str] = ["http://localhost:5173", "https://examforge-kohl.vercel.app"]
 
     # ── Firebase ─────────────────────────────────────────────────────────
     FIREBASE_CREDENTIALS_JSON: str = ""
