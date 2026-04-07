@@ -118,14 +118,19 @@ async def get_user_stats(current_user: dict, supabase: Client) -> dict:
     quizzes_taken = quiz_result.count or 0
 
     # Study hours (sum of study session durations)
-    study_result = (
-        supabase.table("study_sessions")
-        .select("duration_s")
-        .eq("user_id", user_id)
-        .not_.is_("duration_s", "null")
-        .execute()
-    )
-    total_study_s = sum((row.get("duration_s") or 0) for row in study_result.data or [])
+    try:
+        study_result = (
+            supabase.table("study_sessions")
+            .select("duration_s")
+            .eq("user_id", user_id)
+            .not_.is_("duration_s", "null")
+            .execute()
+        )
+        total_study_s = sum((row.get("duration_s") or 0) for row in study_result.data or [])
+    except Exception as e:
+        logger.error("study_sessions_query_failed", error=str(e))
+        total_study_s = 0
+        
     study_hours = round(total_study_s / 3600, 1)
 
     # Current streak (consecutive days with activity)
