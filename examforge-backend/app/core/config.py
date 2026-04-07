@@ -23,8 +23,6 @@ class Settings(BaseSettings):
     SUPABASE_SERVICE_KEY: str = ""
     SUPABASE_STORAGE_BUCKET: str = "notes-content"
 
-    # ── Piston (free code execution — no API key required) ─────────────
-    PISTON_MAX_RUNS_PER_USER_PER_HOUR: int = 20
 
     # ── AI ───────────────────────────────────────────────────────────────
     GEMINI_API_KEY: str = ""
