@@ -43,7 +43,7 @@ class SubjectResponse(BaseModel):
     slug: str
     name: str
     category: str = "GATE"
-    icon: str = ""
+    icon: Optional[str] = None
     is_published: bool = True
     order_index: int = 0
     chapter_count: int = 0

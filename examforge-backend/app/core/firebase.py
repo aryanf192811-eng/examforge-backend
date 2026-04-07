@@ -34,7 +34,12 @@ def init_firebase() -> None:
     # Method 1: Base64-encoded credentials (preferred for deployment)
     if settings.FIREBASE_CREDENTIALS_B64:
         try:
-            decoded = base64.b64decode(settings.FIREBASE_CREDENTIALS_B64)
+            b64_string = settings.FIREBASE_CREDENTIALS_B64
+            missing_padding = len(b64_string) % 4
+            if missing_padding:
+                b64_string += "=" * (4 - missing_padding)
+            
+            decoded = base64.b64decode(b64_string)
             service_info = json.loads(decoded)
             cred = credentials.Certificate(service_info)
             logger.info("firebase_init_success", method="b64_string")
