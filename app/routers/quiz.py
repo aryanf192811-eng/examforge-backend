@@ -9,6 +9,7 @@ from fastapi import APIRouter, Depends, Query
 from supabase import Client
 
 from app.core.dependencies import get_current_user
+from app.core.errors import ExamForgeError
 from app.core.supabase import get_supabase
 from app.models.practice import (
     QuizSessionResponse,
@@ -50,18 +51,24 @@ async def get_questions(
     if subject_ids:
         parsed_subject_ids = [s.strip() for s in subject_ids.split(",") if s.strip()]
 
-    result = await quiz_service.create_quiz_session(
-        current_user=current_user,
-        mode=mode,
-        subject_ids=parsed_subject_ids,
-        year=year,
-        question_type=type,
-        difficulty=difficulty,
-        count=count,
-        source_session_id=source_session_id,
-        supabase=supabase,
-    )
-    return QuizSessionResponse(**result)
+    try:
+        result = await quiz_service.create_quiz_session(
+            current_user=current_user,
+            mode=mode,
+            subject_ids=parsed_subject_ids,
+            year=year,
+            question_type=type,
+            difficulty=difficulty,
+            count=count,
+            source_session_id=source_session_id,
+            supabase=supabase,
+        )
+        return QuizSessionResponse(**result)
+    except Exception as e:
+        import structlog
+        logger = structlog.get_logger(__name__)
+        logger.error("quiz_generation_failed", error=str(e))
+        raise ExamForgeError(500, f"Failed to generate quiz: {str(e)}")
 
 
 @router.post("/save", response_model=QuizSaveResponse)

@@ -49,7 +49,7 @@ async def create_quiz_session(
     # ── Build question query based on mode ───────────────────────────
     query = supabase.table("questions").select(
         "id, type, marks, question_text, option_a, option_b, option_c, option_d, "
-        "difficulty, is_pyq, gate_year, subject_id, chapter_id, "
+        "difficulty, is_pyq, gate_year, subject_id, chapter_id, category, "
         "subjects!inner(name), chapters(title)"
     )
 
@@ -114,27 +114,32 @@ async def create_quiz_session(
     question_ids = [q["id"] for q in questions]
     formatted_questions = []
     for q in questions:
-        options = []
-        for key in ["A", "B", "C", "D"]:
-            opt_text = q.get(f"option_{key.lower()}")
-            if opt_text:
-                options.append({"key": key, "text": opt_text})
+        try:
+            options = []
+            for key in ["A", "B", "C", "D"]:
+                opt_text = q.get(f"option_{key.lower()}")
+                if opt_text:
+                    options.append({"key": key, "text": opt_text})
 
-        subject_info = q.get("subjects", {})
-        chapter_info = q.get("chapters", {})
+            subject_info = q.get("subjects", {})
+            chapter_info = q.get("chapters", {})
 
-        formatted_questions.append({
-            "id": q["id"],
-            "type": q["type"],
-            "marks": float(q["marks"]),
-            "stem": q["question_text"],
-            "options": options,
-            "subject": subject_info.get("name", ""),
-            "chapter": chapter_info.get("title") if chapter_info else None,
-            "difficulty": q["difficulty"],
-            "is_pyq": q.get("is_pyq", False),
-            "gate_year": q.get("gate_year"),
-        })
+            formatted_questions.append({
+                "id": q["id"],
+                "type": q.get("type", "MCQ"),
+                "marks": float(q.get("marks", 1.0)),
+                "stem": q["question_text"],
+                "options": options,
+                "subject": subject_info.get("name", ""),
+                "chapter": chapter_info.get("title") if chapter_info else None,
+                "category": q.get("category"),
+                "difficulty": q.get("difficulty", "medium"),
+                "is_pyq": q.get("is_pyq", False),
+                "gate_year": q.get("gate_year"),
+            })
+        except Exception as e:
+            logger.error("quiz_question_format_failed", question_id=q.get("id"), error=str(e))
+            continue
 
     # ── Calculate deadline ───────────────────────────────────────────
     now = datetime.utcnow()
