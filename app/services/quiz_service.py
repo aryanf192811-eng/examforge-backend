@@ -136,6 +136,8 @@ async def create_quiz_session(
                 "difficulty": q.get("difficulty", "medium"),
                 "is_pyq": q.get("is_pyq", False),
                 "gate_year": q.get("gate_year"),
+                "explanation": q.get("explanation"),
+                "image_url": q.get("image_url"),
             })
         except Exception as e:
             logger.error("quiz_question_format_failed", question_id=q.get("id"), error=str(e))

@@ -20,16 +20,18 @@ class QuizOption(BaseModel):
 class QuizQuestion(BaseModel):
     """A question returned in a quiz session (correct answer NEVER included)."""
     id: str
-    stem: str  # Required
-    type: str = "MCQ"  # Default to MCQ
+    stem: str  # Required (The 'text' of the question)
+    type: str = "MCQ"
     marks: float = 1.0
     options: list[QuizOption] = []
     subject: str = ""
     chapter: Optional[str] = None
-    category: Optional[str] = None  # New field
+    category: Optional[str] = None
     difficulty: str = "medium"
     is_pyq: bool = False
     gate_year: Optional[int] = None
+    explanation: Optional[str] = None
+    image_url: Optional[str] = None
 
 
 class QuizSessionResponse(BaseModel):
