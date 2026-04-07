@@ -125,7 +125,7 @@ async def get_user_stats(current_user: dict, supabase: Client) -> dict:
         .not_.is_("duration_s", "null")
         .execute()
     )
-    total_study_s = sum(row.get("duration_s", 0) for row in study_result.data or [])
+    total_study_s = sum((row.get("duration_s") or 0) for row in study_result.data or [])
     study_hours = round(total_study_s / 3600, 1)
 
     # Current streak (consecutive days with activity)
