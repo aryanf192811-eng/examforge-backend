@@ -23,7 +23,6 @@ from app.routers import (
     doubts,
     quiz,
     flashcards,
-    judge,
     leaderboard,
     profile,
     export,
@@ -100,7 +99,7 @@ def create_app() -> FastAPI:
     app.include_router(doubts.router,       prefix="/api/doubts",       tags=["doubts"])
     app.include_router(quiz.router,         prefix="/api/quiz",         tags=["quiz"])
     app.include_router(flashcards.router,   prefix="/api/flashcards",   tags=["flashcards"])
-    app.include_router(judge.router,        prefix="/api/judge",        tags=["judge"])
+
     app.include_router(leaderboard.router,  prefix="/api/leaderboard",  tags=["leaderboard"])
     app.include_router(profile.router,      prefix="/api/profile",      tags=["profile"])
     app.include_router(export.router,       prefix="/api/export",       tags=["export"])

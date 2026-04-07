@@ -43,13 +43,20 @@ async def test_piston():
             "stdin": "",
             "args": []
         }
+        headers = {}
+        piston_key = os.getenv("PISTON_API_KEY")
+        if piston_key:
+            headers["Authorization"] = piston_key
+            
         async with httpx.AsyncClient(timeout=10) as client:
-            response = await client.post(PISTON_URL, json=payload)
+            response = await client.post(PISTON_URL, json=payload, headers=headers)
             if response.status_code == 200:
                 result = response.json()
                 print(f"SUCCESS: Piston result: {result['run']['stdout'].strip()}")
             else:
                 print(f"FAILURE: Piston status code: {response.status_code}")
+                if response.status_code == 401:
+                    print("  -> ERROR: Piston now requires an API key (as of Feb 2026). Set PISTON_API_KEY in .env")
     except Exception as e:
         print(f"FAILURE: Piston test failed: {e}")
 
