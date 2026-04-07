@@ -99,7 +99,7 @@ class QuizSubmitResponse(BaseModel):
 class ActiveSession(BaseModel):
     """Active session info for GET /api/quiz/active."""
     id: str
-    type: str
+    type: str = "custom"
     question_count: int
     answered_count: int = 0
     started_at: str

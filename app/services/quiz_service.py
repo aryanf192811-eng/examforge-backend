@@ -149,17 +149,31 @@ async def create_quiz_session(
         deadline = now + timedelta(hours=2)  # Custom sessions: 2 hours
 
     # ── Create session in PostgreSQL ─────────────────────────────────
-    supabase.table("quiz_sessions").insert({
-        "id": session_id,
-        "user_id": user_id,
-        "mode": mode,
-        "question_ids": question_ids,
-        "status": "active",
-        "started_at": now.isoformat(),
-        "server_deadline": deadline.isoformat(),
-        "answers": {},
-        "flags": [],
-    }).execute()
+    try:
+        supabase.table("quiz_sessions").insert({
+            "id": session_id,
+            "user_id": user_id,
+            "mode": mode,
+            "question_ids": question_ids,
+            "status": "active",
+            "started_at": now.isoformat(),
+            "server_deadline": deadline.isoformat(),
+            "answers": {},
+            "flags": [],
+        }).execute()
+    except Exception as e:
+        logger.warning("quiz_session_insert_failed_retrying", error=str(e))
+        # Retry without mode column
+        supabase.table("quiz_sessions").insert({
+            "id": session_id,
+            "user_id": user_id,
+            "question_ids": question_ids,
+            "status": "active",
+            "started_at": now.isoformat(),
+            "server_deadline": deadline.isoformat(),
+            "answers": {},
+            "flags": [],
+        }).execute()
 
 
     logger.info(
@@ -222,13 +236,24 @@ async def submit_quiz(
     user_id = current_user["profile_id"]
 
     # ── Step 1: Fetch session + verify ───────────────────────────────
-    session = (
-        supabase.table("quiz_sessions")
-        .select("id, user_id, mode, question_ids, status, started_at, server_deadline, answers")
-        .eq("id", session_id)
-        .single()
-        .execute()
-    )
+    try:
+        session = (
+            supabase.table("quiz_sessions")
+            .select("id, user_id, mode, question_ids, status, started_at, server_deadline, answers")
+            .eq("id", session_id)
+            .single()
+            .execute()
+        )
+    except Exception as e:
+        logger.warning("quiz_submission_fetch_failed_retrying", error=str(e))
+        # Retry without mode column
+        session = (
+            supabase.table("quiz_sessions")
+            .select("id, user_id, question_ids, status, started_at, server_deadline, answers")
+            .eq("id", session_id)
+            .single()
+            .execute()
+        )
 
     if not session.data:
         raise ExamForgeError(404, "Session not found")
@@ -416,15 +441,28 @@ async def get_active_session(current_user: dict, supabase: Client) -> dict:
     user_id = current_user["profile_id"]
 
     # Check PostgreSQL for active sessions
-    result = (
-        supabase.table("quiz_sessions")
-        .select("id, mode, question_ids, started_at, server_deadline, answers, status")
-        .eq("user_id", user_id)
-        .eq("status", "active")
-        .order("started_at", desc=True)
-        .limit(1)
-        .execute()
-    )
+    try:
+        result = (
+            supabase.table("quiz_sessions")
+            .select("id, mode, question_ids, started_at, server_deadline, answers, status")
+            .eq("user_id", user_id)
+            .eq("status", "active")
+            .order("started_at", desc=True)
+            .limit(1)
+            .execute()
+        )
+    except Exception as e:
+        logger.warning("quiz_active_session_fetch_failed_retrying", error=str(e))
+        # Retry without mode column
+        result = (
+            supabase.table("quiz_sessions")
+            .select("id, question_ids, started_at, server_deadline, answers, status")
+            .eq("user_id", user_id)
+            .eq("status", "active")
+            .order("started_at", desc=True)
+            .limit(1)
+            .execute()
+        )
 
     if not result.data:
         return {"has_active": False, "session": None}

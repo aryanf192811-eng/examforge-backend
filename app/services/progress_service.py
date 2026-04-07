@@ -143,14 +143,18 @@ async def get_user_stats(current_user: dict, supabase: Client) -> dict:
 async def _calculate_streak(user_id: str, supabase: Client) -> int:
     """Calculate the current consecutive-day study streak."""
     # Get recent study sessions ordered by date
-    result = (
-        supabase.table("study_sessions")
-        .select("started_at")
-        .eq("user_id", user_id)
-        .order("started_at", desc=True)
-        .limit(90)  # Check last 90 days max
-        .execute()
-    )
+    try:
+        result = (
+            supabase.table("study_sessions")
+            .select("started_at")
+            .eq("user_id", user_id)
+            .order("started_at", desc=True)
+            .limit(90)  # Check last 90 days max
+            .execute()
+        )
+    except Exception as e:
+        logger.error("streak_calculation_failed_missing_column", error=str(e))
+        return 0
 
     if not result.data:
         return 0
