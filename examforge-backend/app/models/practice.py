@@ -45,8 +45,8 @@ class QuizSessionResponse(BaseModel):
 class QuizSaveRequest(BaseModel):
     """Request for POST /api/quiz/save — Redis-backed hot state."""
     session_id: str
-    answers: dict[str, str] = Field(default_factory=dict)
-    flags: list[str] = Field(default_factory=list)
+    answers: dict[str, any] = Field(default_factory=dict)
+    flags: Optional[list[str]] = Field(default_factory=list)
 
 
 class QuizSaveResponse(BaseModel):

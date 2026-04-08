@@ -22,7 +22,7 @@ class Settings(BaseSettings):
     SUPABASE_URL: str = ""
     SUPABASE_SERVICE_KEY: str = ""
     # ── Content ──────────────────────────────────────────────────────────
-    MANIFEST_URL: str = "http://localhost:5173/content/manifest.json"
+    MANIFEST_URL: str = "https://examforgee.vercel.app/content/manifest.json"
 
     # ── AI ───────────────────────────────────────────────────────────────
     GEMINI_API_KEY: str = ""
