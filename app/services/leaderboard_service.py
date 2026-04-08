@@ -68,7 +68,7 @@ async def get_leaderboard(
         profile = row.get("profiles", {})
         entries.append({
             "rank": offset + i + 1,
-            "user_id": row["uid"],
+            "uid": row["uid"],
             "name": profile.get("name", "Anonymous"),
             "avatar_url": profile.get("avatar_url"),
             "college": profile.get("college"),

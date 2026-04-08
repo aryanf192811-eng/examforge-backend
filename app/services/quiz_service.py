@@ -34,7 +34,7 @@ async def create_quiz_session(
     supabase: Client,
 ) -> dict:
     """Create a new quiz session."""
-    user_id = current_user["profile_id"]
+    user_id = current_user["uid"]
     session_id = str(uuid.uuid4())
 
     # ── Build question query ─────────────────────────────────────────
@@ -133,7 +133,7 @@ async def save_quiz_state(
     supabase: Client,
 ) -> dict:
     """Sync ephemeral quiz state to PostgreSQL directly."""
-    user_id = current_user["profile_id"]
+    user_id = current_user["uid"]
     
     try:
         supabase.table("quiz_sessions").update({
@@ -150,7 +150,7 @@ async def submit_quiz(
     current_user: dict, session_id: str, supabase: Client
 ) -> dict:
     """Submit quiz, calculate score, return results."""
-    user_id = current_user["profile_id"]
+    user_id = current_user["uid"]
 
     # 1. Fetch session
     session_res = (
@@ -247,7 +247,7 @@ async def submit_quiz(
 
 async def get_active_session(current_user: dict, supabase: Client) -> dict:
     """Check for active session."""
-    user_id = current_user["profile_id"]
+    user_id = current_user["uid"]
     
     res = (
         supabase.table("quiz_sessions")

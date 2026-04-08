@@ -25,7 +25,8 @@ async def update_progress(
     Awards leaderboard points on 'done' status.
     """
     result = await notes_service.update_note_progress(
-        chapter_id=request.chapter_id,
+        chapter_slug=request.chapter_slug,
+        subject_slug=request.subject_slug,
         status=request.status,
         time_spent_s=request.time_spent_s,
         current_user=current_user,

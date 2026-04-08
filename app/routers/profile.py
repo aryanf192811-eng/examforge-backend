@@ -65,7 +65,7 @@ async def get_profile(
         bio=profile.get("bio"),
         role=profile.get("role", "free"),
         college=profile.get("college"),
-        gate_year=profile.get("gate_year"),
+        target_year=profile.get("target_year"),
         target_score=profile.get("target_score"),
         created_at=profile.get("created_at"),
         total_points=stats.get("total_points", 0),
@@ -91,7 +91,11 @@ async def update_profile(
     if not update_data:
         raise HTTPException(status_code=400, detail="No fields to update")
 
-    supabase.table("profiles").update(update_data).eq("uid", uid).execute()
+    try:
+        supabase.table("profiles").update(update_data).eq("uid", uid).execute()
+    except Exception as e:
+        logger.error("profile_update_failed", error=str(e), uid=uid)
+        raise HTTPException(status_code=500, detail=f"Failed to update profile: {str(e)}")
 
     # Return updated profile
     return await get_profile(current_user=current_user, supabase=supabase)

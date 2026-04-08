@@ -20,8 +20,8 @@ class ProfileUpdateRequest(BaseModel):
     """PATCH /api/profile/me — Updatable profile fields."""
     name: Optional[str] = Field(None, max_length=100)
     college: Optional[str] = Field(None, max_length=200)
-    gate_year: Optional[int] = Field(None, ge=2024, le=2030)
-    target_score: Optional[float] = Field(None, ge=0, le=100)
+    target_year: Optional[int] = Field(None, ge=2024, le=2030)
+    target_score: Optional[int] = Field(None, ge=0, le=1000)
     bio: Optional[str] = Field(None, max_length=500)
 
 
@@ -46,8 +46,8 @@ class ProfileResponse(BaseModel):
     bio: Optional[str] = None
     role: str = "free"
     college: Optional[str] = None
-    gate_year: Optional[int] = None
-    target_score: Optional[float] = None
+    target_year: Optional[int] = None
+    target_score: Optional[int] = None
     created_at: Optional[str] = None
 
     # Computed stats

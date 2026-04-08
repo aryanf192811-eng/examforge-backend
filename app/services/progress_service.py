@@ -16,7 +16,7 @@ async def start_study_session(
     current_user: dict, chapter_id: str, supabase: Client
 ) -> dict:
     """Record the start of a study session."""
-    user_id = current_user["profile_id"]
+    user_id = current_user["uid"]
     session_id = str(uuid.uuid4())
 
     try:
@@ -38,7 +38,7 @@ async def end_study_session(
     current_user: dict, session_id: str, supabase: Client
 ) -> dict:
     """Record the end of a study session."""
-    user_id = current_user["profile_id"]
+    user_id = current_user["uid"]
 
     try:
         result = (
@@ -72,7 +72,7 @@ async def end_study_session(
 
 async def get_user_stats(current_user: dict, supabase: Client) -> dict:
     """Compute aggregate stats for a user's profile."""
-    user_id = current_user["profile_id"]
+    user_id = current_user["uid"]
 
     # 1. Points
     total_points = 0

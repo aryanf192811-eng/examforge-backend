@@ -25,7 +25,7 @@ router = APIRouter()
 
 @router.get("/questions", response_model=QuizSessionResponse)
 async def get_questions(
-    mode: str = Query("custom", pattern="^(pyq|mock|custom|shadow)$"),
+    mode: str = Query("custom", pattern="^(pyq|mock|custom|shadow|mixed|topic)$"),
     subject_slugs: Optional[str] = Query(None, description="Comma-separated subject slugs"),
     year: Optional[int] = Query(None, description="GATE year for PYQ mode"),
     difficulty: Optional[str] = Query(None, pattern="^(easy|medium|hard)$"),

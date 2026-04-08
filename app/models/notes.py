@@ -24,7 +24,8 @@ class NoteUrlResponse(BaseModel):
 
 class NoteProgressRequest(BaseModel):
     """Request for POST /api/notes/progress."""
-    chapter_id: str = Field(..., description="UUID of the chapter")
+    chapter_slug: str = Field(..., description="Slug of the chapter")
+    subject_slug: str = Field(..., description="Slug of the subject")
     status: str = Field(..., pattern="^(not_started|in_progress|done)$")
     time_spent_s: int = Field(0, ge=0, description="Time spent reading in seconds")
 

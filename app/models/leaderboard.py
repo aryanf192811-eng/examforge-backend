@@ -10,7 +10,7 @@ from pydantic import BaseModel, Field
 class LeaderboardEntry(BaseModel):
     """A single entry on the leaderboard."""
     rank: int
-    user_id: str
+    uid: str
     name: str
     avatar_url: Optional[str] = None
     college: Optional[str] = None

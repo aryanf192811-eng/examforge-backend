@@ -59,7 +59,7 @@ async def get_current_user(
 
     user_data = result.data
     return {
-        "uid": firebase_user["uid"],
+        "uid": user_data["uid"],
         "email": firebase_user["email"],
         "profile_id": user_data["uid"],
         "role": user_data.get("role", "free"),
