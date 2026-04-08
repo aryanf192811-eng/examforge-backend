@@ -33,8 +33,8 @@ async def create_or_sync_session(id_token: str, supabase: Client) -> dict:
     # Step 2: Check if profile exists
     result = (
         supabase.table("profiles")
-        .select("id, role, name")
-        .eq("firebase_uid", uid)
+        .select("uid, role, name")
+        .eq("uid", uid)
         .execute()
     )
 
@@ -45,7 +45,7 @@ async def create_or_sync_session(id_token: str, supabase: Client) -> dict:
         insert_result = (
             supabase.table("profiles")
             .insert({
-                "firebase_uid": uid,
+                "uid": uid,
                 "email": email,
                 "name": name,
                 "avatar_url": picture,
@@ -62,11 +62,11 @@ async def create_or_sync_session(id_token: str, supabase: Client) -> dict:
         supabase.table("profiles").update({
             "name": name,
             "avatar_url": picture,
-        }).eq("firebase_uid", uid).execute()
+        }).eq("uid", uid).execute()
         logger.info("profile_synced", uid=uid)
 
     return {
-        "profile_id": profile["id"],
+        "profile_id": profile["uid"],
         "role": profile.get("role", "free"),
         "name": profile.get("name", name),
         "email": email,

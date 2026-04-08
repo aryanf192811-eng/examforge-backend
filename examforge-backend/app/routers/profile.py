@@ -58,8 +58,7 @@ async def get_profile(
     )
 
     return ProfileResponse(
-        id=profile["uid"],  # Mapping uid to id for legacy frontend compat
-        firebase_uid=profile["uid"], # Usually identical in standard deployments
+        uid=profile["uid"],
         email=profile.get("email", ""),
         name=profile.get("name", "Student"),
         avatar_url=profile.get("avatar_url"),

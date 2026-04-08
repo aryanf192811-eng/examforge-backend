@@ -39,8 +39,7 @@ class SessionResponse(BaseModel):
 
 class ProfileResponse(BaseModel):
     """Response for GET /api/profile/me."""
-    id: str
-    firebase_uid: str
+    uid: str
     email: str
     name: str
     avatar_url: Optional[str] = None
@@ -49,7 +48,6 @@ class ProfileResponse(BaseModel):
     college: Optional[str] = None
     gate_year: Optional[int] = None
     target_score: Optional[float] = None
-    bio: Optional[str] = None
     created_at: Optional[str] = None
 
     # Computed stats
