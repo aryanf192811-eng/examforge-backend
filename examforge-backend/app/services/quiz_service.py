@@ -113,6 +113,7 @@ async def create_quiz_session(
             "status": "active",
             "started_at": now.isoformat(),
             "answers": {},
+            "total_questions": len(question_ids),
         }).execute()
     except Exception as e:
         logger.error("quiz_session_insert_failed", error=str(e))
@@ -226,7 +227,8 @@ async def submit_quiz(
     supabase.table("quiz_sessions").update({
         "status": "submitted",
         "score": round(marks_obtained, 2),
-        "submitted_at": datetime.utcnow().isoformat(),
+        "completed_at": datetime.utcnow().isoformat(),
+        "correct_count": correct,
     }).eq("id", session_id).execute()
 
     # 5. Points

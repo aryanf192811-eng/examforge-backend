@@ -71,7 +71,7 @@ async def create_doubt(
     # Step 1: Fetch chapter + subject context
     chapter_result = (
         supabase.table("chapters")
-        .select("id, title, subject_id, subjects!inner(name)")
+        .select("id, title, subject_id, subjects!inner(title)")
         .eq("id", chapter_id)
         .single()
         .execute()
@@ -81,14 +81,14 @@ async def create_doubt(
         raise ExamForgeError(404, "Chapter not found")
 
     chapter_title = chapter_result.data["title"]
-    subject_name = chapter_result.data.get("subjects", {}).get("name", "Computer Science")
+    subject_title = chapter_result.data.get("subjects", {}).get("title", "Computer Science")
 
     # Step 2: Generate AI answer
     try:
         answer = await generate_doubt_answer(
             chapter_title=chapter_title,
-            subject_name=subject_name,
-            selected_text=selected_text,
+            subject_name=subject_title,
+            selected_text=selected_text or "No text selected",
             question=question,
         )
     except Exception as e:
@@ -99,7 +99,7 @@ async def create_doubt(
     insert_result = (
         supabase.table("doubts")
         .insert({
-            "user_id": user_id,
+            "user_id": current_user["uid"],
             "chapter_id": chapter_id,
             "selected_text": selected_text,
             "question": question,
@@ -109,7 +109,7 @@ async def create_doubt(
     )
 
     doubt = insert_result.data[0]
-    logger.info("doubt_created", user_id=user_id, chapter_id=chapter_id, doubt_id=doubt["id"])
+    logger.info("doubt_created", user_id=current_user["uid"], chapter_id=chapter_id, doubt_id=doubt["id"])
 
     return {
         "id": doubt["id"],
@@ -131,7 +131,7 @@ async def get_doubts(
         supabase.table("doubts")
         .select(
             "id, chapter_id, selected_text, question, answer, created_at, "
-            "chapters!inner(title, subjects!inner(name))"
+            "chapters!inner(title, subjects!inner(title))"
         )
         .eq("user_id", user_id)
         .order("created_at", desc=True)
@@ -150,8 +150,8 @@ async def get_doubts(
             "id": row["id"],
             "chapter_id": row["chapter_id"],
             "chapter_title": chapter_data.get("title", ""),
-            "subject_name": subject_data.get("name", ""),
-            "selected_text": row["selected_text"],
+            "subject_name": subject_data.get("title", ""),
+            "selected_text": row["selected_text"] or "",
             "question": row["question"],
             "answer": row["answer"],
             "created_at": row["created_at"],

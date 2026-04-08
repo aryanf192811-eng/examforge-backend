@@ -10,8 +10,8 @@ from pydantic import BaseModel, Field
 class DoubtCreateRequest(BaseModel):
     """Request for POST /api/doubts — create a new doubt."""
     chapter_id: str = Field(..., description="UUID of the chapter")
-    selected_text: str = Field(
-        ..., min_length=1, max_length=2000,
+    selected_text: Optional[str] = Field(
+        None, max_length=2000,
         description="Text the user selected from notes",
     )
     question: str = Field(

@@ -91,10 +91,10 @@ async def get_chapters_with_progress(
         return []
 
     # Find the subject in manifest
-    subject = next((s for s in manifest.get("subjects", []) if s["slug"] == subject_slug), None)
+    subject = next((s for s in manifest.get("subjects", []) if s["slug"] == subject_slug or s["id"] == subject_slug), None)
     if not subject:
         # Check skills too
-        subject = next((s for s in manifest.get("skills", []) if s["slug"] == subject_slug), None)
+        subject = next((s for s in manifest.get("skills", []) if s["slug"] == subject_slug or s["id"] == subject_slug), None)
         
     if not subject:
         logger.warning("subject_not_found_in_manifest", slug=subject_slug)
@@ -102,6 +102,7 @@ async def get_chapters_with_progress(
 
     chapters = subject.get("chapters", [])
     chapter_slugs = [ch["slug"] for ch in chapters]
+    chapter_ids = [ch["id"] for ch in chapters]
     
     # Batch fetch user progress
     user_progress_map = {}
@@ -111,7 +112,7 @@ async def get_chapters_with_progress(
                 supabase.table("user_progress")
                 .select("chapter_slug, status, time_spent_s")
                 .eq("uid", uid)
-                .in_("chapter_slug", chapter_slugs)
+                .or_(f"chapter_slug.in.({','.join(chapter_slugs)}), chapter_slug.in.({','.join(chapter_ids)})")
                 .execute()
             )
             for p in prog_res.data or []:
