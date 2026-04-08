@@ -137,51 +137,73 @@ async def get_subjects_with_progress(current_user: dict, supabase: Client) -> li
 
     subjects = []
     for subj in subjects_result.data or []:
-        # Count chapters for this subject
-        chapters_result = (
-            supabase.table("chapters")
-            .select("id", count="exact")
-            .eq("subject_id", subj["id"])
-            .eq("is_published", True)
-            .execute()
-        )
-        chapter_count = chapters_result.count or 0
+        try:
+            # Count chapters for this subject
+            chapters_result = (
+                supabase.table("chapters")
+                .select("id", count="exact")
+                .eq("subject_id", subj["id"])
+                .eq("is_published", True)
+                .execute()
+            )
+            chapter_count = chapters_result.count or 0
 
-        # Count completed chapters for this user
-        completed_result = (
-            supabase.table("user_progress")
-            .select("id", count="exact")
-            .eq("user_id", user_id)
-            .eq("status", "done")
-            .in_("chapter_id", [
-                ch["id"] for ch in (
+            # Count completed chapters for this user
+            completed_chapters = 0
+            if chapter_count > 0:
+                # Fetch chapter IDs for this subject
+                subject_chapters = (
                     supabase.table("chapters")
                     .select("id")
                     .eq("subject_id", subj["id"])
                     .execute()
                 ).data or []
-            ])
-            .execute()
-        )
-        completed_chapters = completed_result.count or 0
+                
+                chapter_ids = [ch["id"] for ch in subject_chapters]
+                
+                if chapter_ids:
+                    completed_result = (
+                        supabase.table("user_progress")
+                        .select("id", count="exact")
+                        .eq("user_id", user_id)
+                        .eq("status", "done")
+                        .in_("chapter_id", chapter_ids)
+                        .execute()
+                    )
+                    completed_chapters = completed_result.count or 0
 
-        progress_pct = (
-            round((completed_chapters / chapter_count) * 100)
-            if chapter_count > 0 else 0
-        )
+            progress_pct = (
+                round((completed_chapters / chapter_count) * 100)
+                if chapter_count > 0 else 0
+            )
 
-        subjects.append({
-            "id": subj["id"],
-            "slug": subj["slug"],
-            "name": subj["name"],
-            "category": subj.get("category", "GATE"),
-            "icon": subj.get("icon", ""),
-            "is_published": subj["is_published"],
-            "order_index": subj.get("order_index", 0),
-            "chapter_count": chapter_count,
-            "completed_chapters": completed_chapters,
-            "progress_pct": progress_pct,
-        })
+            subjects.append({
+                "id": subj["id"],
+                "slug": subj["slug"],
+                "name": subj["name"],
+                "category": subj.get("category", "GATE"),
+                "icon": subj.get("icon", ""),
+                "is_published": subj["is_published"],
+                "order_index": subj.get("order_index", 0),
+                "chapter_count": chapter_count,
+                "completed_chapters": completed_chapters,
+                "progress_pct": progress_pct,
+            })
+        except Exception as e:
+            logger.error("subject_progress_failed", subject_id=subj.get("id"), error=str(e))
+            # Append basic subject info even if progress fails
+            subjects.append({
+                "id": subj["id"],
+                "slug": subj["slug"],
+                "name": subj["name"],
+                "category": subj.get("category", "GATE"),
+                "icon": subj.get("icon", ""),
+                "is_published": subj["is_published"],
+                "order_index": subj.get("order_index", 0),
+                "chapter_count": 0,
+                "completed_chapters": 0,
+                "progress_pct": 0,
+            })
 
     return subjects
 

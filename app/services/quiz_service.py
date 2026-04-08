@@ -270,6 +270,22 @@ async def submit_quiz(
     started_at = session.data.get("started_at")
 
     # ── Step 3: Fetch questions with correct answers ─────────────────
+    if not question_ids:
+        return {
+            "session_id": session_id,
+            "total_marks": 0,
+            "marks_obtained": 0,
+            "total_questions": 0,
+            "correct": 0,
+            "incorrect": 0,
+            "unanswered": 0,
+            "accuracy_pct": 0,
+            "negative_marks": 0,
+            "time_taken_s": 0,
+            "question_results": [],
+            "subject_analysis": [],
+        }
+
     questions_result = (
         supabase.table("questions")
         .select(
