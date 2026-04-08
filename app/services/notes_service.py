@@ -1,10 +1,13 @@
 """
-ExamForge — Notes Service (v2: CDN-direct signed URL flow)
-Generates signed URLs for direct CDN access. Server never fetches HTML.
+ExamForge — Notes Service (v3: Hybrid Static Content)
+Reads content structure from manifest.json and joins with Supabase user state.
 """
 
+import json
+import urllib.request
 import structlog
 from supabase import Client
+from typing import Optional, List, Dict
 
 from app.core.config import settings
 from app.core.errors import ExamForgeError
@@ -13,252 +16,163 @@ from app.services.leaderboard_service import add_points, POINTS
 logger = structlog.get_logger(__name__)
 
 
-async def get_note_signed_url(chapter_id: str, current_user: dict, supabase: Client) -> dict:
-    """Generate a short-lived signed URL for CDN-direct note access.
-
-    Process:
-    1. Verify chapter access + publish status
-    2. Get exact storage path from notes table
-    3. Generate signed URL via Supabase Storage
-    4. Return signed URL — client fetches from CDN directly
-
-    CRITICAL: storage_path and bucket name are NEVER returned.
-    """
-    # Step 1: Verify chapter access + publish status
-    chapter = (
-        supabase.table("chapters")
-        .select("id, is_published, subject_id")
-        .eq("id", chapter_id)
-        .single()
-        .execute()
-    )
-    if not chapter.data or not chapter.data["is_published"]:
-        raise ExamForgeError(404, "Chapter notes not available")
+def _fetch_manifest() -> Optional[Dict]:
+    """Fetch the source-of-truth manifest from the configured URL."""
+    try:
+        # Prevent long hangs if the manifest URL is unresponsive
+        with urllib.request.urlopen(settings.MANIFEST_URL, timeout=5.0) as response:
+            return json.loads(response.read().decode())
+    except Exception as e:
+        logger.error("manifest_fetch_failed", url=settings.MANIFEST_URL, error=str(e))
+        return None
 
 
-    # Step 3: Get exact storage path
-    note = (
-        supabase.table("notes")
-        .select("storage_path")
-        .eq("chapter_id", chapter_id)
-        .single()
-        .execute()
-    )
-    if not note.data:
-        raise ExamForgeError(404, "Notes file not uploaded yet")
+async def get_subjects_with_progress(current_user: dict, supabase: Client) -> List[Dict]:
+    """Get all published subjects from manifest with per-user progress from Supabase."""
+    uid = current_user["uid"]
+    manifest = _fetch_manifest()
+    
+    if not manifest:
+        logger.warning("serving_empty_subjects_no_manifest")
+        return []
 
-    # Step 4: Generate signed URL
-    storage_path = note.data["storage_path"]
-    logger.debug("generating_signed_url", chapter_id=chapter_id)  # Never log path at INFO+
+    subjects_data = manifest.get("subjects", [])
+    result = []
 
-    signed = (
-        supabase.storage
-        .from_(settings.SUPABASE_STORAGE_BUCKET)
-        .create_signed_url(storage_path, settings.SIGNED_URL_EXPIRY_S)
-    )
+    for subj in subjects_data:
+        if not subj.get("is_published", True):
+            continue
 
-    signed_url = None
-    if isinstance(signed, dict):
-        signed_url = signed.get("signedURL") or signed.get("signed_url")
-    elif hasattr(signed, "signed_url"):
-        signed_url = signed.signed_url
+        subject_slug = subj["slug"]
+        chapters = subj.get("chapters", [])
+        chapter_slugs = [ch["slug"] for ch in chapters]
+        
+        # Calculate progress from user_progress table
+        completed_count = 0
+        try:
+            if chapter_slugs:
+                progress_res = (
+                    supabase.table("user_progress")
+                    .select("id")
+                    .eq("uid", uid)
+                    .eq("status", "done")
+                    .in_("chapter_slug", chapter_slugs)
+                    .execute()
+                )
+                completed_count = len(progress_res.data) if progress_res.data else 0
+        except Exception as e:
+            logger.error("progress_fetch_failed", subject=subject_slug, error=str(e))
 
-    if not signed_url:
-        logger.error("signed_url_generation_failed", chapter_id=chapter_id)
-        raise ExamForgeError(500, "Could not generate content access URL")
+        chapter_count = len(chapters)
+        progress_pct = round((completed_count / chapter_count * 100)) if chapter_count > 0 else 0
 
-    logger.info("notes_url_generated", chapter_id=chapter_id)
+        result.append({
+            "id": subj["id"],
+            "slug": subject_slug,
+            "name": subj["name"],
+            "category": subj.get("category", "GATE"),
+            "icon": subj.get("icon", "school"),
+            "chapter_count": chapter_count,
+            "completed_chapters": completed_count,
+            "progress_pct": progress_pct,
+        })
 
-    # Step 4: Return signed URL to client
-    # CRITICAL: The client fetches from CDN directly. The backend NEVER fetches HTML.
-    return {"signed_url": signed_url, "chapter_id": chapter_id, "cached": False}
+    return result
+
+
+async def get_chapters_with_progress(
+    subject_slug: str, current_user: dict, supabase: Client
+) -> List[Dict]:
+    """Get chapters for a subject from manifest with user progress."""
+    uid = current_user["uid"]
+    manifest = _fetch_manifest()
+    
+    if not manifest:
+        return []
+
+    # Find the subject in manifest
+    subject = next((s for s in manifest.get("subjects", []) if s["slug"] == subject_slug), None)
+    if not subject:
+        # Check skills too
+        subject = next((s for s in manifest.get("skills", []) if s["slug"] == subject_slug), None)
+        
+    if not subject:
+        logger.warning("subject_not_found_in_manifest", slug=subject_slug)
+        return []
+
+    chapters = subject.get("chapters", [])
+    chapter_slugs = [ch["slug"] for ch in chapters]
+    
+    # Batch fetch user progress
+    user_progress_map = {}
+    try:
+        if chapter_slugs:
+            prog_res = (
+                supabase.table("user_progress")
+                .select("chapter_slug, status, time_spent_s")
+                .eq("uid", uid)
+                .in_("chapter_slug", chapter_slugs)
+                .execute()
+            )
+            for p in prog_res.data or []:
+                user_progress_map[p["chapter_slug"]] = p
+    except Exception as e:
+        logger.error("chapters_progress_failed", subject=subject_slug, error=str(e))
+
+    result = []
+    for ch in chapters:
+        prog = user_progress_map.get(ch["slug"], {})
+        result.append({
+            "id": ch["id"],
+            "slug": ch["slug"],
+            "title": ch["title"],
+            "order_index": ch.get("order_index", 0),
+            "has_notes": ch.get("has_notes", False),
+            "user_status": prog.get("status", "not_started"),
+            "time_spent_s": prog.get("time_spent_s", 0),
+            "notes_url": f"/content/notes/{ch['notes_file']}" if ch.get("notes_file") else None
+        })
+
+    return result
 
 
 async def update_note_progress(
-    chapter_id: str,
+    chapter_slug: str,
+    subject_slug: str,
     status: str,
     time_spent_s: int,
     current_user: dict,
     supabase: Client,
 ) -> dict:
-    """Update reading progress for a chapter.
+    """Update reading progress. Pure Supabase user-state update."""
+    uid = current_user["uid"]
 
-    Uses UPSERT to avoid race conditions.
-    Awards leaderboard points if status transitions to 'done'.
-    """
-    user_id = current_user["profile_id"]
+    try:
+        # Check if already done for points
+        existing = (
+            supabase.table("user_progress")
+            .select("status")
+            .eq("uid", uid)
+            .eq("chapter_slug", chapter_slug)
+            .execute()
+        )
+        was_done = existing.data and existing.data[0].get("status") == "done"
 
-    # Check current status before update (for points award)
-    existing = (
-        supabase.table("user_progress")
-        .select("status")
-        .eq("user_id", user_id)
-        .eq("chapter_id", chapter_id)
-        .execute()
-    )
-    was_done = existing.data and existing.data[0].get("status") == "done"
-
-    # UPSERT progress
-    supabase.table("user_progress").upsert(
-        {
-            "user_id": user_id,
-            "chapter_id": chapter_id,
+        # UPSERT
+        supabase.table("user_progress").upsert({
+            "uid": uid,
+            "chapter_slug": chapter_slug,
+            "subject_slug": subject_slug,
             "status": status,
             "time_spent_s": time_spent_s,
-        },
-        on_conflict="user_id,chapter_id",
-    ).execute()
+            "last_read_at": "now()"
+        }, on_conflict="uid,chapter_slug").execute()
 
-    # Award points if transitioning to 'done'
-    if status == "done" and not was_done:
-        await add_points(
-            user_id=user_id,
-            reason="chapter_completed",
-            amount=POINTS["chapter_completed"],
-            supabase=supabase,
-        )
-        logger.info("chapter_completed", user_id=user_id, chapter_id=chapter_id)
-
-    return {"ok": True}
-
-
-async def get_subjects_with_progress(current_user: dict, supabase: Client) -> list[dict]:
-    """Get all published subjects with per-user progress stats."""
-    user_id = current_user["profile_id"]
-
-    # Fetch all published subjects ordered by order_index
-    subjects_result = (
-        supabase.table("subjects")
-        .select("id, slug, name, category, icon, is_published, order_index")
-        .eq("is_published", True)
-        .order("order_index")
-        .execute()
-    )
-
-    subjects = []
-    for subj in subjects_result.data or []:
-        try:
-            # Count chapters for this subject
-            chapters_result = (
-                supabase.table("chapters")
-                .select("id", count="exact")
-                .eq("subject_id", subj["id"])
-                .eq("is_published", True)
-                .execute()
-            )
-            chapter_count = chapters_result.count or 0
-
-            # Count completed chapters for this user
-            completed_chapters = 0
-            if chapter_count > 0:
-                # Fetch chapter IDs for this subject
-                subject_chapters = (
-                    supabase.table("chapters")
-                    .select("id")
-                    .eq("subject_id", subj["id"])
-                    .execute()
-                ).data or []
-                
-                chapter_ids = [ch["id"] for ch in subject_chapters]
-                
-                if chapter_ids:
-                    completed_result = (
-                        supabase.table("user_progress")
-                        .select("id", count="exact")
-                        .eq("user_id", user_id)
-                        .eq("status", "done")
-                        .in_("chapter_id", chapter_ids)
-                        .execute()
-                    )
-                    completed_chapters = completed_result.count or 0
-
-            progress_pct = (
-                round((completed_chapters / chapter_count) * 100)
-                if chapter_count > 0 else 0
-            )
-
-            subjects.append({
-                "id": subj["id"],
-                "slug": subj["slug"],
-                "name": subj["name"],
-                "category": subj.get("category", "GATE"),
-                "icon": subj.get("icon", ""),
-                "is_published": subj["is_published"],
-                "order_index": subj.get("order_index", 0),
-                "chapter_count": chapter_count,
-                "completed_chapters": completed_chapters,
-                "progress_pct": progress_pct,
-            })
-        except Exception as e:
-            logger.error("subject_progress_failed", subject_id=subj.get("id"), error=str(e))
-            # Append basic subject info even if progress fails
-            subjects.append({
-                "id": subj["id"],
-                "slug": subj["slug"],
-                "name": subj["name"],
-                "category": subj.get("category", "GATE"),
-                "icon": subj.get("icon", ""),
-                "is_published": subj["is_published"],
-                "order_index": subj.get("order_index", 0),
-                "chapter_count": 0,
-                "completed_chapters": 0,
-                "progress_pct": 0,
-            })
-
-    return subjects
-
-
-async def get_chapters_with_progress(
-    subject_id: str, current_user: dict, supabase: Client
-) -> list[dict]:
-    """Get chapters for a subject with per-user progress."""
-    user_id = current_user["profile_id"]
-
-    # Fetch chapters
-    chapters_result = (
-        supabase.table("chapters")
-        .select("id, subject_id, slug, title, order_index, is_published")
-        .eq("subject_id", subject_id)
-        .eq("is_published", True)
-        .order("order_index")
-        .execute()
-    )
-
-    chapters = []
-    for ch in chapters_result.data or []:
-        # Check if notes exist
-        notes_result = (
-            supabase.table("notes")
-            .select("id")
-            .eq("chapter_id", ch["id"])
-            .execute()
-        )
-        has_notes = bool(notes_result.data)
-
-        # Get user progress
-        progress_result = (
-            supabase.table("user_progress")
-            .select("status, time_spent_s")
-            .eq("user_id", user_id)
-            .eq("chapter_id", ch["id"])
-            .execute()
-        )
-        user_status = "not_started"
-        time_spent_s = 0
-        if progress_result.data:
-            user_status = progress_result.data[0].get("status", "not_started")
-            time_spent_s = progress_result.data[0].get("time_spent_s", 0)
-
-        chapters.append({
-            "id": ch["id"],
-            "subject_id": ch["subject_id"],
-            "slug": ch["slug"],
-            "title": ch["title"],
-            "order_index": ch.get("order_index", 0),
-            "is_published": ch["is_published"],
-            "has_notes": has_notes,
-            "user_status": user_status,
-            "time_spent_s": time_spent_s,
-        })
-
-    return chapters
+        # Points
+        if status == "done" and not was_done:
+            await add_points(uid, "chapter_completed", POINTS["chapter_completed"], supabase)
+            
+        return {"ok": True}
+    except Exception as e:
+        logger.error("progress_update_failed", error=str(e))
+        return {"ok": False, "error": str(e)}

@@ -35,7 +35,7 @@ async def get_leaderboard(
         profile_result = (
             supabase.table("profiles")
             .select("college")
-            .eq("id", current_user["profile_id"])
+            .eq("uid", current_user["uid"])
             .single()
             .execute()
         )
@@ -46,7 +46,7 @@ async def get_leaderboard(
         scope=scope,
         page=page,
         limit=limit,
-        current_user_id=current_user["profile_id"],
+        current_uid=current_user["uid"],
         current_user_college=current_user_college,
         supabase=supabase,
     )

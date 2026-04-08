@@ -59,14 +59,13 @@ class SubjectListResponse(BaseModel):
 class ChapterResponse(BaseModel):
     """Single chapter in the chapters list."""
     id: str
-    subject_id: str
     slug: str
     title: str
     order_index: int = 0
-    is_published: bool = True
     has_notes: bool = False
     user_status: str = "not_started"
     time_spent_s: int = 0
+    notes_url: Optional[str] = None
 
 
 class ChapterListResponse(BaseModel):

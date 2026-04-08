@@ -14,20 +14,19 @@ from app.services import notes_service
 router = APIRouter()
 
 
-@router.get("/{subject_id}", response_model=ChapterListResponse)
+@router.get("/{subject_slug}", response_model=ChapterListResponse)
 async def list_chapters(
-    subject_id: str,
+    subject_slug: str,
     current_user: dict = Depends(get_current_user),
     supabase: Client = Depends(get_supabase),
 ):
     """[AUTH] Get chapters for a subject with per-user progress.
 
-    Returns chapters ordered by order_index with notes availability
-    and per-user reading status.
+    Returns chapters from the static manifest, joined with reading status.
     """
     chapters = await notes_service.get_chapters_with_progress(
-        subject_id=subject_id,
+        subject_slug=subject_slug,
         current_user=current_user,
         supabase=supabase,
     )
-    return ChapterListResponse(subject_id=subject_id, chapters=chapters)
+    return ChapterListResponse(subject_id=subject_slug, chapters=chapters)

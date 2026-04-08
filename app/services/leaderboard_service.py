@@ -18,7 +18,7 @@ POINTS = {
 }
 
 
-async def add_points(user_id: str, reason: str, amount: int, supabase: Client) -> None:
+async def add_points(uid: str, reason: str, amount: int, supabase: Client) -> None:
     """Atomic increment of total_points and weekly_points via Supabase RPC.
 
     Uses the increment_leaderboard_points PostgreSQL function for atomicity.
@@ -26,43 +26,31 @@ async def add_points(user_id: str, reason: str, amount: int, supabase: Client) -
     try:
         supabase.rpc(
             "increment_leaderboard_points",
-            {"p_user_id": user_id, "p_points": amount},
+            {"p_user_id": uid, "p_points": amount},
         ).execute()
-        logger.info("points_added", user_id=user_id, reason=reason, amount=amount)
+        logger.info("points_added", uid=uid, reason=reason, amount=amount)
     except Exception:
-        logger.exception("points_add_failed", user_id=user_id, reason=reason)
+        logger.exception("points_add_failed", uid=uid, reason=reason)
 
 
 async def get_leaderboard(
     scope: str,
     page: int,
     limit: int,
-    current_user_id: str,
+    current_uid: str,
     current_user_college: str | None,
     supabase: Client,
 ) -> dict:
-    """Fetch leaderboard entries with pagination.
-
-    Args:
-        scope: 'weekly', 'all_time', or 'college'
-        page: Page number (1-indexed)
-        limit: Entries per page (max 50)
-        current_user_id: Profile ID of the requesting user
-        current_user_college: College name for college scope filtering
-        supabase: Supabase client instance
-
-    Returns:
-        dict with entries, total count, and current user rank
-    """
+    """Fetch leaderboard entries with pagination."""
     offset = (page - 1) * limit
     order_col = "weekly_points" if scope == "weekly" else "total_points"
 
-    # Base query with profile join
+    # Base query with profile join (aligned with uid)
     query = (
         supabase.table("leaderboard_scores")
         .select(
-            "user_id, total_points, weekly_points, "
-            "profiles!inner(id, name, avatar_url, college)",
+            "uid, total_points, weekly_points, "
+            "profiles!inner(uid, name, avatar_url, college)",
             count="exact",
         )
         .order(order_col, desc=True)
@@ -80,13 +68,13 @@ async def get_leaderboard(
         profile = row.get("profiles", {})
         entries.append({
             "rank": offset + i + 1,
-            "user_id": row["user_id"],
+            "user_id": row["uid"],
             "name": profile.get("name", "Anonymous"),
             "avatar_url": profile.get("avatar_url"),
             "college": profile.get("college"),
             "total_points": row.get("total_points", 0),
             "weekly_points": row.get("weekly_points", 0),
-            "is_current_user": row["user_id"] == current_user_id,
+            "is_current_user": row["uid"] == current_uid,
         })
 
     # Get current user's rank
@@ -94,20 +82,16 @@ async def get_leaderboard(
     try:
         rank_query = (
             supabase.table("leaderboard_scores")
-            .select("user_id")
+            .select("uid")
             .order(order_col, desc=True)
         )
-        if scope == "college" and current_user_college:
-            # For college scope, we need a different approach
-            pass
-
         rank_result = rank_query.execute()
         for idx, row in enumerate(rank_result.data or []):
-            if row["user_id"] == current_user_id:
+            if row["uid"] == current_uid:
                 current_user_rank = idx + 1
                 break
     except Exception:
-        logger.warning("rank_lookup_failed", user_id=current_user_id)
+        logger.warning("rank_lookup_failed", uid=current_uid)
 
     return {
         "scope": scope,
