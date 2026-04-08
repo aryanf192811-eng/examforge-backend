@@ -57,6 +57,7 @@ async def get_profile(
         email=profile.get("email", ""),
         name=profile.get("name", ""),
         avatar_url=profile.get("avatar_url"),
+        bio=profile.get("bio"),
         role=profile.get("role", "free"),
         college=profile.get("college"),
         gate_year=profile.get("gate_year"),
@@ -67,6 +68,7 @@ async def get_profile(
         quizzes_taken=stats["quizzes_taken"],
         current_streak=stats["current_streak"],
         study_hours=stats["study_hours"],
+        accuracy_pct=stats["accuracy_pct"],
     )
 
 

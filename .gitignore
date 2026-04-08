@@ -23,3 +23,7 @@ rebase-key.json
 artifacts/
 pip_err*.txt
 pip_out.txt
+
+# Frontend folders
+examforge-frontend/
+examforge-v2/

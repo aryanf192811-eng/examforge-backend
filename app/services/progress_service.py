@@ -131,12 +131,31 @@ async def get_user_stats(current_user: dict, supabase: Client) -> dict:
     # Current streak (consecutive days with activity)
     current_streak = await _calculate_streak(user_id, supabase)
 
+    # Global Accuracy (Correct / Total questions in submitted quizzes)
+    accuracy_result = (
+        supabase.table("quiz_sessions")
+        .select("correct_count, question_ids")
+        .eq("user_id", user_id)
+        .eq("status", "submitted")
+        .execute()
+    )
+    total_correct = 0
+    total_attempted = 0
+    for row in accuracy_result.data or []:
+        total_correct += row.get("correct_count", 0) or 0
+        q_ids = row.get("question_ids")
+        if isinstance(q_ids, list):
+            total_attempted += len(q_ids)
+
+    accuracy_pct = round((total_correct / total_attempted) * 100, 1) if total_attempted > 0 else 0.0
+
     return {
         "total_points": total_points,
         "chapters_completed": chapters_completed,
         "quizzes_taken": quizzes_taken,
         "current_streak": current_streak,
         "study_hours": study_hours,
+        "accuracy_pct": accuracy_pct,
     }
 
 

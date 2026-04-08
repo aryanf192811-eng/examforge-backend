@@ -22,6 +22,7 @@ class ProfileUpdateRequest(BaseModel):
     college: Optional[str] = Field(None, max_length=200)
     gate_year: Optional[int] = Field(None, ge=2024, le=2030)
     target_score: Optional[float] = Field(None, ge=0, le=100)
+    bio: Optional[str] = Field(None, max_length=500)
 
 
 # ── Response Models ──────────────────────────────────────────────────────
@@ -43,10 +44,12 @@ class ProfileResponse(BaseModel):
     email: str
     name: str
     avatar_url: Optional[str] = None
+    bio: Optional[str] = None
     role: str = "free"
     college: Optional[str] = None
     gate_year: Optional[int] = None
     target_score: Optional[float] = None
+    bio: Optional[str] = None
     created_at: Optional[str] = None
 
     # Computed stats
@@ -55,6 +58,7 @@ class ProfileResponse(BaseModel):
     quizzes_taken: int = 0
     current_streak: int = 0
     study_hours: float = 0.0
+    accuracy_pct: float = 0.0
 
 
 class AvatarUploadResponse(BaseModel):
