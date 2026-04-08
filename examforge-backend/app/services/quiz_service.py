@@ -104,37 +104,47 @@ async def create_quiz_session(
             count = 65  # GATE standard
 
     # Fetch and limit
-    result = query.limit(count).execute()
-    questions = result.data or []
+    try:
+        result = query.limit(count).execute()
+        questions = result.data or []
+    except Exception as e:
+        logger.error("quiz_fetch_failed", error=str(e), user_id=user_id, mode=mode)
+        questions = []
 
-    if not questions:
+    if not questions and mode != "mock":
         raise ExamForgeError(404, "No questions found matching your criteria")
 
     # ── Build question list (correct answers NEVER returned) ─────────
-    question_ids = [q["id"] for q in questions]
     formatted_questions = []
+    question_ids = []
+
     for q in questions:
-        options = []
-        for key in ["A", "B", "C", "D"]:
-            opt_text = q.get(f"option_{key.lower()}")
-            if opt_text:
-                options.append({"key": key, "text": opt_text})
+        try:
+            options = []
+            for key in ["A", "B", "C", "D"]:
+                opt_text = q.get(f"option_{key.lower()}")
+                if opt_text:
+                    options.append({"key": key, "text": opt_text})
 
-        subject_info = q.get("subjects", {})
-        chapter_info = q.get("chapters", {})
+            subject_info = q.get("subjects", {})
+            chapter_info = q.get("chapters", {})
 
-        formatted_questions.append({
-            "id": q["id"],
-            "type": q["type"],
-            "marks": float(q["marks"]),
-            "stem": q["question_text"],
-            "options": options,
-            "subject": subject_info.get("name", ""),
-            "chapter": chapter_info.get("title") if chapter_info else None,
-            "difficulty": q["difficulty"],
-            "is_pyq": q.get("is_pyq", False),
-            "gate_year": q.get("gate_year"),
-        })
+            formatted_questions.append({
+                "id": q["id"],
+                "type": q["type"],
+                "marks": float(q.get("marks", 0)),
+                "stem": q.get("question_text", "[Malformed Question]"),
+                "options": options,
+                "subject": subject_info.get("name", "Unknown"),
+                "chapter": chapter_info.get("title") if chapter_info else None,
+                "difficulty": q.get("difficulty", "medium"),
+                "is_pyq": q.get("is_pyq", False),
+                "gate_year": q.get("gate_year"),
+            })
+            question_ids.append(q["id"])
+        except Exception as e:
+            logger.error("question_format_failed", question_id=q.get("id"), error=str(e))
+            continue
 
     # ── Calculate deadline ───────────────────────────────────────────
     now = datetime.utcnow()

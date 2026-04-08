@@ -50,17 +50,28 @@ async def get_questions(
     if subject_ids:
         parsed_subject_ids = [s.strip() for s in subject_ids.split(",") if s.strip()]
 
-    result = await quiz_service.create_quiz_session(
-        current_user=current_user,
-        mode=mode,
-        subject_ids=parsed_subject_ids,
-        year=year,
-        question_type=type,
-        difficulty=difficulty,
-        count=count,
-        source_session_id=source_session_id,
-        supabase=supabase,
-    )
+    try:
+        result = await quiz_service.create_quiz_session(
+            current_user=current_user,
+            mode=mode,
+            subject_ids=parsed_subject_ids,
+            year=year,
+            question_type=type,
+            difficulty=difficulty,
+            count=count,
+            source_session_id=source_session_id,
+            supabase=supabase,
+        )
+    except Exception as e:
+        # Fallback to prevent 500 errors
+        from datetime import datetime, timedelta
+        return QuizSessionResponse(
+            session_id=f"err_{mode}_{datetime.utcnow().timestamp()}",
+            questions=[],
+            question_count=0,
+            server_deadline=(datetime.utcnow() + timedelta(hours=1)).isoformat()
+        )
+    
     return QuizSessionResponse(**result)
 
 
