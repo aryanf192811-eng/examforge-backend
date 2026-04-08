@@ -21,16 +21,11 @@ class Settings(BaseSettings):
     # ── Supabase ─────────────────────────────────────────────────────────
     SUPABASE_URL: str = ""
     SUPABASE_SERVICE_KEY: str = ""
-    SUPABASE_STORAGE_BUCKET: str = "notes-content"
-
+    # ── Content ──────────────────────────────────────────────────────────
+    MANIFEST_URL: str = "http://localhost:5173/content/manifest.json"
 
     # ── AI ───────────────────────────────────────────────────────────────
     GEMINI_API_KEY: str = ""
-
-    # ── Security ─────────────────────────────────────────────────────────
-    SIGNED_URL_EXPIRY_S: int = 3600
-    # How long to cache a signed URL in Redis before regenerating
-    SIGNED_URL_CACHE_TTL_S: int = 3000  # 50 min < 60 min expiry — always valid
 
     # ── Quiz state ───────────────────────────────────────────────────────
     QUIZ_FLUSH_INTERVAL_S: int = 30      # Frontend polls this rate; backend mirrors it

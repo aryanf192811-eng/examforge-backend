@@ -39,16 +39,16 @@ class NoteProgressResponse(BaseModel):
 
 class SubjectResponse(BaseModel):
     """Single subject in the subjects list."""
-    id: Optional[str] = None
-    slug: Optional[str] = None
-    name: Optional[str] = None
-    category: Optional[str] = "GATE"
-    icon: Optional[str] = None
-    is_published: Optional[bool] = True
-    order_index: Optional[int] = 0
-    chapter_count: Optional[int] = 0
-    completed_chapters: Optional[int] = 0
-    progress_pct: Optional[int] = 0
+    id: str
+    slug: str
+    name: str
+    category: str = "GATE"
+    icon: str = ""
+    is_published: bool = True
+    order_index: int = 0
+    chapter_count: int = 0
+    completed_chapters: int = 0
+    progress_pct: int = 0
 
 
 class SubjectListResponse(BaseModel):
@@ -59,14 +59,13 @@ class SubjectListResponse(BaseModel):
 class ChapterResponse(BaseModel):
     """Single chapter in the chapters list."""
     id: str
-    subject_id: str
     slug: str
     title: str
     order_index: int = 0
-    is_published: bool = True
     has_notes: bool = False
     user_status: str = "not_started"
     time_spent_s: int = 0
+    notes_url: Optional[str] = None
 
 
 class ChapterListResponse(BaseModel):

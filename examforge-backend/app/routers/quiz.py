@@ -1,14 +1,14 @@
 """
 ExamForge — Quiz Router (/api/quiz)
-Quiz sessions with Redis-backed hot state (v2).
+Quiz sessions for the Hybrid Static architecture.
 """
 
 from typing import Optional
-
 from fastapi import APIRouter, Depends, Query
 from supabase import Client
 
 from app.core.dependencies import get_current_user
+from app.core.errors import ExamForgeError
 from app.core.supabase import get_supabase
 from app.models.practice import (
     QuizSessionResponse,
@@ -26,53 +26,34 @@ router = APIRouter()
 @router.get("/questions", response_model=QuizSessionResponse)
 async def get_questions(
     mode: str = Query("custom", pattern="^(pyq|mock|custom|shadow)$"),
-    subject_ids: Optional[str] = Query(None, description="Comma-separated subject UUIDs"),
+    subject_slugs: Optional[str] = Query(None, description="Comma-separated subject slugs"),
     year: Optional[int] = Query(None, description="GATE year for PYQ mode"),
-    type: Optional[str] = Query(None, pattern="^(MCQ|NAT|MSQ)$"),
     difficulty: Optional[str] = Query(None, pattern="^(easy|medium|hard)$"),
     count: int = Query(20, ge=1, le=65),
-    source_session_id: Optional[str] = Query(None, description="Session ID for shadow mode"),
     current_user: dict = Depends(get_current_user),
     supabase: Client = Depends(get_supabase),
 ):
-    """[AUTH] Fetch questions and create a new quiz session.
-
-    Modes:
-    - pyq: Previous Year Questions filtered by params
-    - mock: Full 65-question GATE mock test
-    - custom: User-defined filters
-    - shadow: Retry wrong questions from a previous session
-
-    CRITICAL: The 'correct' field is NEVER returned in this endpoint.
-    """
-    # Parse comma-separated subject IDs
-    parsed_subject_ids = None
-    if subject_ids:
-        parsed_subject_ids = [s.strip() for s in subject_ids.split(",") if s.strip()]
+    """[AUTH] Fetch questions and create a new quiz session."""
+    parsed_slugs = None
+    if subject_slugs:
+        parsed_slugs = [s.strip() for s in subject_slugs.split(",") if s.strip()]
 
     try:
         result = await quiz_service.create_quiz_session(
             current_user=current_user,
             mode=mode,
-            subject_ids=parsed_subject_ids,
+            subject_slugs=parsed_slugs,
             year=year,
-            question_type=type,
             difficulty=difficulty,
             count=count,
-            source_session_id=source_session_id,
             supabase=supabase,
         )
+        return QuizSessionResponse(**result)
     except Exception as e:
-        # Fallback to prevent 500 errors
-        from datetime import datetime, timedelta
-        return QuizSessionResponse(
-            session_id=f"err_{mode}_{datetime.utcnow().timestamp()}",
-            questions=[],
-            question_count=0,
-            server_deadline=(datetime.utcnow() + timedelta(hours=1)).isoformat()
-        )
-    
-    return QuizSessionResponse(**result)
+        import structlog
+        logger = structlog.get_logger(__name__)
+        logger.error("quiz_generation_failed", error=str(e))
+        raise ExamForgeError(500, f"Failed to generate quiz: {str(e)}")
 
 
 @router.post("/save", response_model=QuizSaveResponse)
@@ -81,16 +62,11 @@ async def save_quiz_state(
     current_user: dict = Depends(get_current_user),
     supabase: Client = Depends(get_supabase),
 ):
-    """[AUTH] Sync ephemeral quiz state to Redis. Called every 30s.
-
-    CRITICAL: Writes to Redis ONLY — NEVER PostgreSQL.
-    High-frequency writes must not hit the database.
-    """
+    """[AUTH] Sync ephemeral quiz state to PostgreSQL."""
     result = await quiz_service.save_quiz_state(
         current_user=current_user,
         session_id=request.session_id,
         answers=request.answers,
-        flags=request.flags,
         supabase=supabase,
     )
     return QuizSaveResponse(**result)
@@ -102,16 +78,7 @@ async def submit_quiz(
     current_user: dict = Depends(get_current_user),
     supabase: Client = Depends(get_supabase),
 ):
-    """[AUTH] Submit quiz, flush Redis→PostgreSQL, calculate score, return results.
-
-    Process:
-    1. Flush Redis state to PostgreSQL (guaranteed flush)
-    2. Calculate score with GATE negative marking
-    3. Update session status to 'submitted'
-    4. Award leaderboard points
-    5. Clean up Redis keys
-    6. Return full results with per-question breakdown
-    """
+    """[AUTH] Submit quiz and return results."""
     result = await quiz_service.submit_quiz(
         current_user=current_user,
         session_id=request.session_id,
@@ -125,10 +92,7 @@ async def get_active_session(
     current_user: dict = Depends(get_current_user),
     supabase: Client = Depends(get_supabase),
 ):
-    """[AUTH] Check if user has an active (non-submitted) quiz session.
-
-    Checks Redis first for session keys, falls back to PostgreSQL.
-    """
+    """[AUTH] Check for active session."""
     result = await quiz_service.get_active_session(
         current_user=current_user,
         supabase=supabase,

@@ -35,26 +35,35 @@ async def get_current_user(
         )
 
     # Fetch profile from Supabase
-    result = (
-        supabase.table("profiles")
-        .select("id, role, name")
-        .eq("firebase_uid", firebase_user["uid"])
-        .single()
-        .execute()
-    )
+    try:
+        # We standardized on 'uid' being the primary identifier in profiles
+        result = (
+            supabase.table("profiles")
+            .select("uid, role, name")
+            .eq("uid", firebase_user["uid"])
+            .single()
+            .execute()
+        )
+    except Exception as e:
+        logger.warning("profile_lookup_failed", error=str(e), uid=firebase_user["uid"])
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Authentication failed or profile missing. Please log in again.",
+        )
 
     if not result.data:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Profile not found. Complete signup first.",
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Profile not found. Please sign up.",
         )
 
+    user_data = result.data
     return {
         "uid": firebase_user["uid"],
         "email": firebase_user["email"],
-        "profile_id": result.data["id"],
-        "role": result.data["role"],
-        "name": result.data["name"],
+        "profile_id": user_data["uid"],
+        "role": user_data.get("role", "free"),
+        "name": user_data.get("name", "Student"),
     }
 
 
