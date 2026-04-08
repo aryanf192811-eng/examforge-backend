@@ -132,22 +132,34 @@ async def get_user_stats(current_user: dict, supabase: Client) -> dict:
     current_streak = await _calculate_streak(user_id, supabase)
 
     # Global Accuracy (Correct / Total questions in submitted quizzes)
-    accuracy_result = (
-        supabase.table("quiz_sessions")
-        .select("correct_count, question_ids")
-        .eq("user_id", user_id)
-        .eq("status", "submitted")
-        .execute()
-    )
-    total_correct = 0
-    total_attempted = 0
-    for row in accuracy_result.data or []:
-        total_correct += row.get("correct_count", 0) or 0
-        q_ids = row.get("question_ids")
-        if isinstance(q_ids, list):
-            total_attempted += len(q_ids)
+    try:
+        accuracy_result = (
+            supabase.table("quiz_sessions")
+            .select("correct_count, question_ids")
+            .eq("user_id", user_id)
+            .eq("status", "submitted")
+            .execute()
+        )
+        total_correct = 0
+        total_attempted = 0
+        for row in accuracy_result.data or []:
+            total_correct += row.get("correct_count", 0) or 0
+            q_ids = row.get("question_ids")
+            if isinstance(q_ids, list):
+                total_attempted += len(q_ids)
+            elif isinstance(q_ids, str):
+                try:
+                    import json
+                    q_ids_list = json.loads(q_ids)
+                    if isinstance(q_ids_list, list):
+                        total_attempted += len(q_ids_list)
+                except Exception:
+                    pass
 
-    accuracy_pct = round((total_correct / total_attempted) * 100, 1) if total_attempted > 0 else 0.0
+        accuracy_pct = round((total_correct / total_attempted) * 100, 1) if total_attempted > 0 else 0.0
+    except Exception as e:
+        logger.error("accuracy_calculation_failed", user_id=user_id, error=str(e))
+        accuracy_pct = 0.0
 
     return {
         "total_points": total_points,
