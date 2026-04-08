@@ -62,9 +62,28 @@ async def create_quiz_session(
     
     for q in questions:
         try:
+            # Prepare options array and determine type
+            options = []
+            q_type = "MCQ"
+            
+            if q.get("option_a"):
+                options.append({"key": "a", "text": q["option_a"]})
+            if q.get("option_b"):
+                options.append({"key": "b", "text": q["option_b"]})
+            if q.get("option_c"):
+                options.append({"key": "c", "text": q["option_c"]})
+            if q.get("option_d"):
+                options.append({"key": "d", "text": q["option_d"]})
+            
+            # If no options, it's NAT
+            if not options:
+                q_type = "NAT"
+
             formatted_questions.append({
                 "id": q["id"],
                 "question_text": q["question_text"],
+                "type": q_type,
+                "options": options,
                 "subject_slug": q["subject_slug"],
                 "chapter_slug": q["chapter_slug"],
                 "difficulty": q.get("difficulty", "medium"),
