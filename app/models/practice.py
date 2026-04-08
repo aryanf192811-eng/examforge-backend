@@ -23,15 +23,17 @@ class QuizQuestion(BaseModel):
     question_text: str
     subject_slug: str
     chapter_slug: str
+    type: str = "MCQ" # Root cause fix: ensure type is serialized
     difficulty: str = "medium"
     marks: int = 1
     is_pyq: bool = False
     gate_year: Optional[int] = None
-    option_a: str
-    option_b: str
-    option_c: str
-    option_d: str
+    option_a: Optional[str] = None
+    option_b: Optional[str] = None
+    option_c: Optional[str] = None
+    option_d: Optional[str] = None
     explanation: Optional[str] = None
+    tags: Optional[list[str]] = None
 
 
 class QuizSessionResponse(BaseModel):

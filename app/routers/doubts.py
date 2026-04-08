@@ -20,7 +20,7 @@ from app.services import doubt_service
 router = APIRouter()
 
 
-@router.post("", response_model=DoubtCreateResponse)
+@router.post("/ask", response_model=DoubtCreateResponse)
 async def create_doubt(
     request: DoubtCreateRequest,
     current_user: dict = Depends(get_current_user),
