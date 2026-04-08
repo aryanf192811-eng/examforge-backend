@@ -28,7 +28,7 @@ def _fetch_manifest() -> Optional[Dict]:
 
 
 async def get_subjects_with_progress(current_user: dict, supabase: Client) -> List[Dict]:
-    """Get all published subjects from manifest with per-user progress from Supabase."""
+    """Get all subjects and skills from manifest with per-user progress."""
     uid = current_user["uid"]
     manifest = _fetch_manifest()
     
@@ -36,10 +36,18 @@ async def get_subjects_with_progress(current_user: dict, supabase: Client) -> Li
         logger.warning("serving_empty_subjects_no_manifest")
         return []
 
-    subjects_data = manifest.get("subjects", [])
+    # Get subjects AND skills
+    subjects_raw = manifest.get("subjects", [])
+    skills_raw = manifest.get("skills", [])
+    
+    # Tag them properly for frontend filtering
+    for s in subjects_raw: s["category"] = s.get("category", "GATE")
+    for s in skills_raw: s["category"] = "skill"
+    
+    all_raw = subjects_raw + skills_raw
     result = []
 
-    for subj in subjects_data:
+    for subj in all_raw:
         if not subj.get("is_published", True):
             continue
 
@@ -70,7 +78,7 @@ async def get_subjects_with_progress(current_user: dict, supabase: Client) -> Li
             "id": subj["id"],
             "slug": subject_slug,
             "name": subj["name"],
-            "category": subj.get("category", "GATE"),
+            "category": subj["category"],
             "icon": subj.get("icon", "school"),
             "chapter_count": chapter_count,
             "completed_chapters": completed_count,

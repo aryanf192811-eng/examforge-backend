@@ -106,17 +106,22 @@ async def create_quiz_session(
 
     # ── Create session in PostgreSQL ─────────────────────────────────
     try:
+        # Determine a primary subject_slug for the session
+        primary_slug = subject_slugs[0] if subject_slugs else "mixed"
+        
         supabase.table("quiz_sessions").insert({
             "id": session_id,
             "uid": user_id,
+            "subject_slug": primary_slug,
+            "mode": mode,
             "question_ids": question_ids,
             "status": "active",
             "started_at": now.isoformat(),
             "answers": {},
         }).execute()
     except Exception as e:
-        logger.error("quiz_session_insert_failed", error=str(e))
-        raise ExamForgeError(500, "Could not start quiz session")
+        logger.error("quiz_session_insert_failed", error=str(e), user=user_id)
+        raise ExamForgeError(500, f"Could not start quiz session: {str(e)}")
 
     return {
         "session_id": session_id,
