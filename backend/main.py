@@ -26,6 +26,8 @@ from app.routers import (
     leaderboard,
     profile,
     subjects,
+    chapters,
+    notes,
 )
 
 # ── Configure structlog ─────────────────────────────────────────────────
@@ -108,6 +110,8 @@ def create_app() -> FastAPI:
     app.include_router(leaderboard.router,  prefix="/api/leaderboard",  tags=["leaderboard"])
     app.include_router(profile.router,      prefix="/api/profile",      tags=["profile"])
     app.include_router(subjects.router,     prefix="/api/subjects",     tags=["subjects"])
+    app.include_router(chapters.router,     prefix="/api/chapters",     tags=["chapters"])
+    app.include_router(notes.router,        prefix="/api/notes",        tags=["notes"])
 
     # ── Root & Health Check ─────────────────────────────────────────
     @app.get("/", include_in_schema=False)
