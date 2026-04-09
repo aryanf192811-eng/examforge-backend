@@ -1,29 +1,45 @@
-# Byte-compiled / optimized / DLL files
-__pycache__/
-*.py[cod]
-*$py.class
+# --- Monorepo .gitignore ---
 
-# Environments
+# Environment Secrets
 .env
-.venv
-env/
+.env.*
+!.env.example
+*.env
+
+# Dependencies
+node_modules/
 venv/
-ENV/
-env.bak/
-venv.bak/
+env/
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
 
-# Project specific files
-firebase-key.json
-rebase-key.json
+# Build Outputs
+dist/
+build/
+*.egg-info/
+.vercel/
 
-# IDEs
+# Database
+# Note: DO NOT ignore content.db as it's required for deployment
+*.db-shm
+*.db-wal
+# *.db (Uncomment if you want to ignore all local DBs, but keep content.db included)
+
+# IDEs and OS
 .vscode/
+.idea/
+.DS_Store
+Thumbs.db
 
-# Ignore artifacts output by the AI
-artifacts/
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pip-log.txt
 pip_err*.txt
 pip_out.txt
-
-# Frontend folders
-examforge-frontend/
-examforge-v2/
+verify_*_output.txt

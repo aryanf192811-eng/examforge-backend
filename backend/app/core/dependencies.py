@@ -36,11 +36,11 @@ async def get_current_user(
 
     # Fetch profile from Supabase
     try:
-        # We standardized on 'uid' being the primary identifier in profiles
+        # We standardized on 'id' being the primary identifier in profiles
         result = (
             supabase.table("profiles")
-            .select("uid, role, name")
-            .eq("uid", firebase_user["uid"])
+            .select("id, role, name")
+            .eq("id", firebase_user["uid"])
             .single()
             .execute()
         )
@@ -61,7 +61,7 @@ async def get_current_user(
     return {
         "uid": firebase_user["uid"],
         "email": firebase_user["email"],
-        "profile_id": user_data["uid"],
+        "profile_id": user_data["id"],
         "role": user_data.get("role", "free"),
         "name": user_data.get("name", "Student"),
     }

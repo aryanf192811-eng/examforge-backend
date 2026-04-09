@@ -16,16 +16,13 @@ from app.core.limiter import limiter
 from app.core.errors import ExamForgeError, examforge_error_handler, unhandled_exception_handler
 from app.routers import (
     auth,
-    notes,
-    subjects,
-    chapters,
+    content,
+    progress,
     bookmarks,
     doubts,
     quiz,
     flashcards,
     leaderboard,
-    profile,
-    export,
 )
 
 # ── Configure structlog ─────────────────────────────────────────────────
@@ -92,16 +89,13 @@ def create_app() -> FastAPI:
 
     # ── Register Routers ─────────────────────────────────────────────
     app.include_router(auth.router,         prefix="/api/auth",         tags=["auth"])
-    app.include_router(subjects.router,     prefix="/api/subjects",     tags=["subjects"])
-    app.include_router(chapters.router,     prefix="/api/chapters",     tags=["chapters"])
-    app.include_router(notes.router,        prefix="/api/notes",        tags=["notes"])
+    app.include_router(content.router,      prefix="/api/content",      tags=["content"])
+    app.include_router(progress.router,     prefix="/api/progress",     tags=["progress"])
     app.include_router(bookmarks.router,    prefix="/api/bookmarks",    tags=["bookmarks"])
     app.include_router(doubts.router,       prefix="/api/doubts",       tags=["doubts"])
     app.include_router(quiz.router,         prefix="/api/quiz",         tags=["quiz"])
     app.include_router(flashcards.router,   prefix="/api/flashcards",   tags=["flashcards"])
     app.include_router(leaderboard.router,  prefix="/api/leaderboard",  tags=["leaderboard"])
-    app.include_router(profile.router,      prefix="/api/profile",      tags=["profile"])
-    app.include_router(export.router,       prefix="/api/export",       tags=["export"])
 
     # ── Root & Health Check ─────────────────────────────────────────
     @app.get("/", include_in_schema=False)

@@ -21,14 +21,8 @@ class Settings(BaseSettings):
     # ── Supabase ─────────────────────────────────────────────────────────
     SUPABASE_URL: str = ""
     SUPABASE_SERVICE_KEY: str = ""
-    # ── Content ──────────────────────────────────────────────────────────
-    MANIFEST_URL: str = "https://examforgee.vercel.app/content/manifest.json"
-
-    # ── AI ───────────────────────────────────────────────────────────────
-    GEMINI_API_KEY: str = ""
-
-    # ── Quiz state ───────────────────────────────────────────────────────
-    QUIZ_FLUSH_INTERVAL_S: int = 30      # Frontend polls this rate; backend mirrors it
+    # ── Database ────────────────────────────────────────────────────────
+    SQLITE_DB_PATH: str = "content.db"
 
 
 settings = Settings()
