@@ -32,143 +32,89 @@ from app.routers import (
 )
 
 # ── Configure structlog ─────────────────────────────────────────────────
-structlog.configure(
-    processors=[
-        structlog.contextvars.merge_contextvars,
-        structlog.processors.add_log_level,
-        structlog.processors.StackInfoRenderer(),
-        structlog.dev.set_exc_info,
-        structlog.processors.TimeStamper(fmt="iso"),
-        structlog.processors.JSONRenderer(),
-    ],
-    wrapper_class=structlog.make_filtering_bound_logger(
-        10 if settings.DEBUG else 20
-    ),
-    context_class=dict,
-    logger_factory=structlog.PrintLoggerFactory(),
-    cache_logger_on_first_use=True,
-)
+try:
+    from app.core.config import settings
+    structlog.configure(
+        processors=[
+            structlog.contextvars.merge_contextvars,
+            structlog.processors.add_log_level,
+            structlog.processors.TimeStamper(fmt="iso"),
+            structlog.processors.JSONRenderer(),
+        ],
+        wrapper_class=structlog.make_filtering_bound_logger(20),
+        logger_factory=structlog.PrintLoggerFactory(),
+    )
+except Exception:
+    pass
 
 logger = structlog.get_logger(__name__)
 
-
 def create_app() -> FastAPI:
-    """Application factory. Creates and configures the FastAPI app."""
+    """Fast-booting Application Factory."""
+    app = FastAPI(title="ExamForge API")
 
-    # ── Initialize Firebase Admin SDK ────────────────────────────────
-    try:
-        init_firebase()
-    except Exception as e:
-        print(f"❌ [CRITICAL] Firebase initialization failed: {e}")
-        logger.error("firebase_init_failed", error=str(e))
-
-    # ── Create FastAPI app ───────────────────────────────────────────
-    app = FastAPI(
-        title="ExamForge API",
-        description="GATE CSE exam prep platform backend",
-        version="2.0.0",
-        docs_url="/docs" if settings.DEBUG else None,
-        redoc_url=None,
-    )
-
-    # ── NUCLEAR CORS MANIFEST ────────────────────────────────────────
-    # We use a custom middleware to ensure headers are present even if 
-    # the app crashes or Render returns a 502/503.
-    
+    # 1. IMMEDIATE NUCLEAR CORS (Absolute Priority)
     @app.middleware("http")
     async def nuclear_cors_middleware(request: Request, call_next):
         origin = request.headers.get("origin")
-        
-        # 1. Handle OPTIONS (Preflight)
         if request.method == "OPTIONS":
-            response = Response()
-            response.status_code = 200
-            if origin:
-                response.headers["Access-Control-Allow-Origin"] = origin
-            else:
-                response.headers["Access-Control-Allow-Origin"] = "*"
-                
-            response.headers["Access-Control-Allow-Methods"] = "GET, POST, PUT, DELETE, OPTIONS, PATCH"
-            response.headers["Access-Control-Allow-Headers"] = "*"
-            response.headers["Access-Control-Allow-Credentials"] = "true"
-            response.headers["Access-Control-Max-Age"] = "86400"
-            return response
-
-        # 2. Process the actual request
+            resp = Response(status_code=200)
+            resp.headers["Access-Control-Allow-Origin"] = origin or "*"
+            resp.headers["Access-Control-Allow-Methods"] = "GET, POST, PUT, DELETE, OPTIONS, PATCH"
+            resp.headers["Access-Control-Allow-Headers"] = "*"
+            resp.headers["Access-Control-Allow-Credentials"] = "true"
+            return resp
+        
         try:
             response = await call_next(request)
         except Exception as e:
-            logger.exception("request_failed", path=request.url.path, error=str(e))
-            response = JSONResponse(
-                status_code=500,
-                content={"type": "internal_error", "title": "An internal error occurred."}
-            )
+            logger.error("internal_crash", path=request.url.path, error=str(e))
+            response = JSONResponse(status_code=500, content={"detail": str(e)})
 
-        # 3. Inject headers into the response
         if origin:
-             response.headers["Access-Control-Allow-Origin"] = origin
-        else:
-             response.headers["Access-Control-Allow-Origin"] = "*"
-             
-        response.headers["Access-Control-Allow-Credentials"] = "true"
+            response.headers["Access-Control-Allow-Origin"] = origin
+            response.headers["Access-Control-Allow-Credentials"] = "true"
         response.headers["Access-Control-Allow-Methods"] = "GET, POST, PUT, DELETE, OPTIONS, PATCH"
         response.headers["Access-Control-Allow-Headers"] = "*"
-        
         return response
 
-    # ── Exception Handlers ───────────────────────────────────────────
-    app.add_exception_handler(ExamForgeError, examforge_error_handler)
-    app.add_exception_handler(Exception, unhandled_exception_handler)
-    app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
-
-    # ── Rate Limiter Connection ──────────────────────────────────────
-    app.state.limiter = limiter
-
-    # ── Lifecycle Events ─────────────────────────────────────────────
+    # 2. LAZY ROUTER REGISTRATION
     @app.on_event("startup")
-    async def startup():
-        logger.info(
-            "app_started", 
-            env=settings.APP_ENV,
-            allowed_origins=settings.ALLOWED_ORIGINS
-        )
+    async def startup_event():
+        """Initialize heavy-weight dependencies after the port is bound."""
+        try:
+            from app.core.firebase import init_firebase
+            init_firebase()
+            logger.info("firebase_lazy_init_success")
+        except Exception as e:
+            logger.error("firebase_lazy_init_failed", error=str(e))
 
-    @app.on_event("shutdown")
-    async def shutdown():
-        logger.info("app_shutdown")
+    # 3. REGISTER ROUTERS
+    from app.routers import (
+        auth, content, progress, bookmarks, doubts, quiz, 
+        flashcards, leaderboard, profile, subjects, chapters, notes
+    )
+    
+    for router_module, prefix, tag in [
+        (auth, "/api/auth", "auth"),
+        (profile, "/api/profile", "profile"),
+        (subjects, "/api/subjects", "subjects"),
+        (chapters, "/api/chapters", "chapters"),
+        (notes, "/api/notes", "notes"),
+        (content, "/api/content", "content"),
+        (progress, "/api/progress", "progress"),
+        (bookmarks, "/api/bookmarks", "bookmarks"),
+        (doubts, "/api/doubts", "doubts"),
+        (quiz, "/api/quiz", "quiz"),
+        (flashcards, "/api/flashcards", "flashcards"),
+        (leaderboard, "/api/leaderboard", "leaderboard"),
+    ]:
+        app.include_router(router_module.router, prefix=prefix, tags=[tag])
 
-    # ── Register Routers ─────────────────────────────────────────────
-    app.include_router(auth.router,         prefix="/api/auth",         tags=["auth"])
-    app.include_router(content.router,      prefix="/api/content",      tags=["content"])
-    app.include_router(progress.router,     prefix="/api/progress",     tags=["progress"])
-    app.include_router(bookmarks.router,    prefix="/api/bookmarks",    tags=["bookmarks"])
-    app.include_router(doubts.router,       prefix="/api/doubts",       tags=["doubts"])
-    app.include_router(quiz.router,         prefix="/api/quiz",         tags=["quiz"])
-    app.include_router(flashcards.router,   prefix="/api/flashcards",   tags=["flashcards"])
-    app.include_router(leaderboard.router,  prefix="/api/leaderboard",  tags=["leaderboard"])
-    app.include_router(profile.router,      prefix="/api/profile",      tags=["profile"])
-    app.include_router(subjects.router,     prefix="/api/subjects",     tags=["subjects"])
-    app.include_router(chapters.router,     prefix="/api/chapters",     tags=["chapters"])
-    app.include_router(notes.router,        prefix="/api/notes",        tags=["notes"])
-
-    # ── Root & Health Check ─────────────────────────────────────────
-    @app.get("/", include_in_schema=False)
-    async def root():
-        from fastapi.responses import RedirectResponse
-        return RedirectResponse(url="/docs")
-
-    # ── Health Check ─────────────────────────────────────────────────
-    @app.get("/health", tags=["system"])
+    @app.get("/health")
     async def health():
-        """Health check endpoint."""
-        return {
-            "status": "ok",
-            "env": settings.APP_ENV,
-            "version": "2.0.0",
-        }
+        return {"status": "ok", "service": "examforge"}
 
     return app
 
-
-# ── Create the app instance ──────────────────────────────────────────────
 app = create_app()
