@@ -4,6 +4,7 @@ FastAPI app with Firebase, Supabase, Redis lifecycle management.
 """
 
 import structlog
+print("\n🚀 [DEBUG] EXAMFORGE SERVER BOOTING — SCRIPT STARTED\n")
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
