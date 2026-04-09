@@ -83,7 +83,11 @@ def create_app() -> FastAPI:
     # ── Lifecycle Events ─────────────────────────────────────────────
     @app.on_event("startup")
     async def startup():
-        logger.info("app_started", env=settings.APP_ENV)
+        logger.info(
+            "app_started", 
+            env=settings.APP_ENV,
+            allowed_origins=settings.ALLOWED_ORIGINS
+        )
 
     @app.on_event("shutdown")
     async def shutdown():
