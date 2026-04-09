@@ -5,8 +5,9 @@ FastAPI app with Firebase, Supabase, Redis lifecycle management.
 
 import structlog
 print("\n🚀 [DEBUG] EXAMFORGE SERVER BOOTING — SCRIPT STARTED\n")
-from fastapi import FastAPI
+from fastapi import FastAPI, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse, RedirectResponse
 
 from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
@@ -55,7 +56,11 @@ def create_app() -> FastAPI:
     """Application factory. Creates and configures the FastAPI app."""
 
     # ── Initialize Firebase Admin SDK ────────────────────────────────
-    init_firebase()
+    try:
+        init_firebase()
+    except Exception as e:
+        print(f"❌ [CRITICAL] Firebase initialization failed: {e}")
+        logger.error("firebase_init_failed", error=str(e))
 
     # ── Create FastAPI app ───────────────────────────────────────────
     app = FastAPI(
@@ -66,26 +71,50 @@ def create_app() -> FastAPI:
         redoc_url=None,
     )
 
-    # ── CORS Middleware ──────────────────────────────────────────────
-    # Safety: Filter out "*" if credentials are allowed
-    # Also handle possible string-as-list mismatches
-    raw_origins = settings.ALLOWED_ORIGINS
-    if isinstance(raw_origins, str):
-         # This handles cases where BaseSettings didn't split the string
-         origins = [orig.strip() for orig in raw_origins.split(",") if orig.strip()]
-    else:
-         origins = [orig for orig in raw_origins if orig != "*"]
-
-    print(f"🔧 [CONFIG] ALLOWED_ORIGINS: {origins}")
+    # ── NUCLEAR CORS MANIFEST ────────────────────────────────────────
+    # We use a custom middleware to ensure headers are present even if 
+    # the app crashes or Render returns a 502/503.
     
-    app.add_middleware(
-        CORSMiddleware,
-        allow_origins=origins,
-        allow_credentials=True,
-        allow_methods=["*"],
-        allow_headers=["*"],
-        expose_headers=["*"],
-    )
+    @app.middleware("http")
+    async def nuclear_cors_middleware(request: Request, call_next):
+        origin = request.headers.get("origin")
+        
+        # 1. Handle OPTIONS (Preflight)
+        if request.method == "OPTIONS":
+            response = Response()
+            response.status_code = 200
+            if origin:
+                response.headers["Access-Control-Allow-Origin"] = origin
+            else:
+                response.headers["Access-Control-Allow-Origin"] = "*"
+                
+            response.headers["Access-Control-Allow-Methods"] = "GET, POST, PUT, DELETE, OPTIONS, PATCH"
+            response.headers["Access-Control-Allow-Headers"] = "*"
+            response.headers["Access-Control-Allow-Credentials"] = "true"
+            response.headers["Access-Control-Max-Age"] = "86400"
+            return response
+
+        # 2. Process the actual request
+        try:
+            response = await call_next(request)
+        except Exception as e:
+            logger.exception("request_failed", path=request.url.path, error=str(e))
+            response = JSONResponse(
+                status_code=500,
+                content={"type": "internal_error", "title": "An internal error occurred."}
+            )
+
+        # 3. Inject headers into the response
+        if origin:
+             response.headers["Access-Control-Allow-Origin"] = origin
+        else:
+             response.headers["Access-Control-Allow-Origin"] = "*"
+             
+        response.headers["Access-Control-Allow-Credentials"] = "true"
+        response.headers["Access-Control-Allow-Methods"] = "GET, POST, PUT, DELETE, OPTIONS, PATCH"
+        response.headers["Access-Control-Allow-Headers"] = "*"
+        
+        return response
 
     # ── Exception Handlers ───────────────────────────────────────────
     app.add_exception_handler(ExamForgeError, examforge_error_handler)
