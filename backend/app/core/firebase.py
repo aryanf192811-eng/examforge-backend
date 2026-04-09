@@ -49,10 +49,12 @@ def init_firebase() -> None:
             logger.error("firebase_file_load_failed", error=str(e))
 
     if cred is None:
-        raise RuntimeError(
-            "Firebase credentials not configured. Set FIREBASE_CREDENTIALS_B64 "
-            "or FIREBASE_CREDENTIALS_JSON in .env"
+        logger.critical(
+            "firebase_credentials_missing",
+            message="Firebase credentials not configured. Auth features will FAIL. "
+            "Set FIREBASE_CREDENTIALS_B64 or FIREBASE_CREDENTIALS_JSON."
         )
+        return
 
     firebase_admin.initialize_app(cred)
     logger.info("firebase_initialized")
