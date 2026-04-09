@@ -7,11 +7,18 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
-    model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8")
+    model_config = SettingsConfigDict(
+        env_file=".env", 
+        env_file_encoding="utf-8",
+        extra="ignore"  # Prevent crashes if extra env vars are present on Render
+    )
 
     # ── General ──────────────────────────────────────────────────────────
     APP_ENV: str = "development"
     DEBUG: bool = False
+    GEMINI_API_KEY: str = ""
+    QUIZ_FLUSH_INTERVAL_S: int = 30
+    MANIFEST_URL: str = ""
     ALLOWED_ORIGINS: list[str] = [
         "http://localhost:5173",
         "http://localhost:3000",
