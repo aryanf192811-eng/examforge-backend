@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, Body
 from typing import Dict, Any
-from ..services import bookmarks_service
-from ..core import dependencies
+from app.services import bookmarks_service
+from app.core import dependencies
 
 router = APIRouter(prefix="/bookmarks", tags=["bookmarks"])
 
