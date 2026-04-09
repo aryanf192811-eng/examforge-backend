@@ -1,0 +1,48 @@
+# ══════════════════════════════════════════════════════════════════════
+# ExamForge Backend — Python Dependencies
+# ══════════════════════════════════════════════════════════════════════
+
+# Framework
+fastapi
+uvicorn[standard]
+gunicorn
+
+# Validation
+pydantic
+pydantic-settings
+
+# Authentication
+firebase-admin
+
+# Database
+supabase
+
+
+# HTTP Client (Judge0 calls)
+httpx
+
+# AI (Doubt answering)
+google-generativeai
+
+# Environment
+python-dotenv
+
+# Rate Limiting
+slowapi
+
+# Logging
+structlog
+
+# File Uploads
+python-multipart
+
+# Migrations
+alembic
+
+# Code Quality (dev)
+ruff
+mypy
+
+# Testing (dev)
+pytest
+pytest-asyncio

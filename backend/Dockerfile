@@ -11,8 +11,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy application code
-COPY . .
+# Copy application code from backend folder
+COPY backend/ .
+# Also copy content.db if it's outside backend (but it's inside backend now)
 
 # Expose port
 EXPOSE 8000
