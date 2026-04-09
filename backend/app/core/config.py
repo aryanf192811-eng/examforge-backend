@@ -3,7 +3,9 @@ ExamForge — Application Configuration
 Loads all settings from environment variables with pydantic-settings.
 """
 
+from pydantic import field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
+from typing import List, Union
 
 
 class Settings(BaseSettings):
@@ -19,12 +21,21 @@ class Settings(BaseSettings):
     GEMINI_API_KEY: str = ""
     QUIZ_FLUSH_INTERVAL_S: int = 30
     MANIFEST_URL: str = ""
-    ALLOWED_ORIGINS: list[str] = [
+    ALLOWED_ORIGINS: List[str] = [
         "https://examforgee.vercel.app",
         "https://examforge-backend.onrender.com",
         "http://localhost:5173",
         "http://localhost:3000",
     ]
+
+    @field_validator("ALLOWED_ORIGINS", mode="before")
+    @classmethod
+    def assemble_cors_origins(cls, v: Union[str, List[str]]) -> List[str]:
+        if isinstance(v, str) and not v.startswith("["):
+            return [i.strip() for i in v.split(",")]
+        elif isinstance(v, (list, str)):
+            return v
+        return v
 
     # ── Firebase ─────────────────────────────────────────────────────────
     FIREBASE_CREDENTIALS_JSON: str = ""

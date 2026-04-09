@@ -67,15 +67,24 @@ def create_app() -> FastAPI:
     )
 
     # ── CORS Middleware ──────────────────────────────────────────────
-    # Safety: Filter out "*" if credentials are allowed (FastAPI limitation)
-    origins = [orig for orig in settings.ALLOWED_ORIGINS if orig != "*"]
+    # Safety: Filter out "*" if credentials are allowed
+    # Also handle possible string-as-list mismatches
+    raw_origins = settings.ALLOWED_ORIGINS
+    if isinstance(raw_origins, str):
+         # This handles cases where BaseSettings didn't split the string
+         origins = [orig.strip() for orig in raw_origins.split(",") if orig.strip()]
+    else:
+         origins = [orig for orig in raw_origins if orig != "*"]
 
+    print(f"🔧 [CONFIG] ALLOWED_ORIGINS: {origins}")
+    
     app.add_middleware(
         CORSMiddleware,
         allow_origins=origins,
         allow_credentials=True,
         allow_methods=["*"],
         allow_headers=["*"],
+        expose_headers=["*"],
     )
 
     # ── Exception Handlers ───────────────────────────────────────────
