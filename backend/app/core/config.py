@@ -19,7 +19,12 @@ class Settings(BaseSettings):
     GEMINI_API_KEY: str = ""
     QUIZ_FLUSH_INTERVAL_S: int = 30
     MANIFEST_URL: str = ""
-    ALLOWED_ORIGINS: list[str] = ["*"]
+    ALLOWED_ORIGINS: list[str] = [
+        "https://examforgee.vercel.app",
+        "https://examforge-backend.onrender.com",
+        "http://localhost:5173",
+        "http://localhost:3000",
+    ]
 
     # ── Firebase ─────────────────────────────────────────────────────────
     FIREBASE_CREDENTIALS_JSON: str = ""
